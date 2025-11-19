@@ -89,6 +89,8 @@ class Semi_encoding_single(torch.nn.Module):
         )
 
     def forward(self, input1, input2):
+        print("I'm here! :)", input1.shape)
+
         return self.encoder1(input1), self.encoder1(input2)
 
     def decoder(self, input1, input2):
