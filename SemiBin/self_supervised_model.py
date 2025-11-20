@@ -4,19 +4,35 @@ from torch.optim import lr_scheduler
 import sys
 from .semi_supervised_model import Semi_encoding_single, Semi_encoding_multiple, feature_Dataset
 from .utils import norm_abundance
+from .semi_supervised_model import model_load
+import os
 
-def loss_function(embedding1, embedding2, label):
-    relu = torch.nn.ReLU()
-    d = torch.norm(embedding1 - embedding2, p=2, dim=1)
-    square_pred = torch.square(d)
-    margin_square = torch.square(relu(1 - d))
-    supervised_loss = torch.mean(
-        label * square_pred + (1 - label) * margin_square)
-    return supervised_loss
+def loss_function(embedding1, cov1, embedding2, cov2, label, include_std=False):
+
+    if not include_std:
+
+        # Compute the term (m_i - m_j)^2
+        mean_squared_diff = (embedding1 - embedding2) ** 2 * 0.5
+
+        # Compute the log expectation
+        log_expectation = -0.5 * (mean_squared_diff).sum(dim=1)
+
+    else:
+        cov1, cov2 = cov1.double(), cov2.double()
+
+        # Compute the term (m_i - m_j)^2
+        mean_squared_diff = (embedding1 - embedding2) ** 2 * (0.5 / (cov1 + cov2))
+
+        # Compute the log expectation
+        log_expectation = -0.5 * (mean_squared_diff).sum(dim=1)
+
+    return torch.nn.functional.binary_cross_entropy(torch.exp(log_expectation), label, reduction='mean')
 
 
-def train_self(logger, datapaths, data_splits, is_combined=True,
-          batchsize=2048, epoches=15, device=None, num_process = 8, mode = 'single'):
+def train_self(
+        include_std, checkpoint_path, output, logger, datapaths, data_splits, is_combined=True,
+        batchsize=2048, epoches=15, device=None, num_process = 8, mode = 'single'
+):
     """
     Train model from one sample(mode=single) or several samples(mode=several)
 
@@ -38,9 +54,19 @@ def train_self(logger, datapaths, data_splits, is_combined=True,
     torch.set_num_threads(num_process)
 
     logger.info('Training model...')
+    print(f"\t- III. BEN: Include std: {include_std}")
+    print(f"\t- III. BEN: Checkpoint: {checkpoint_path}")
 
     if not is_combined:
-        model = Semi_encoding_single(train_data.shape[1])
+        print(f"\t- III. BEN: We're calling Semi_encoding_single method here! | is_combined: {is_combined}")
+        if checkpoint_path is not None:
+            print(f"\t\t- Loading checkpoint: {checkpoint_path}")
+            # model = torch.load(checkpoint_path, map_location='cpu')
+            model = model_load(checkpoint_path, device, warn_on_old_format=True)
+            model.include_std = include_std
+            # raise NotImplementedError("For checkpoint, it has to be implemented!")
+        else:
+            model = Semi_encoding_single(train_data.shape[1], include_std=include_std)
     else:
         model = Semi_encoding_multiple(train_data.shape[1])
 
@@ -72,6 +98,7 @@ def train_self(logger, datapaths, data_splits, is_combined=True,
             train_data_split = data_split.values
             n_must_link = len(train_data_split)
             if not is_combined:
+                print(f"\t- IV. BEN: In training, we will only use k-mer features: 136/{train_data.shape}!")
                 train_data = train_data[:, :136]
             else:
                 if norm_abundance(train_data):
@@ -125,16 +152,21 @@ def train_self(logger, datapaths, data_splits, is_combined=True,
                 train_input1 = train_input1.to(device=device, dtype=torch.float32)
                 train_input2 = train_input2.to(device=device, dtype=torch.float32)
                 train_label = train_label.to(device=device, dtype=torch.float32)
-                embedding1, embedding2 = model.forward(
-                    train_input1, train_input2)
+                embedding1, cov1, embedding2, cov2 = model.forward(
+                    train_input1, train_input2
+                )
                 # decoder1, decoder2 = model.decoder(embedding1, embedding2)
                 optimizer.zero_grad()
-                supervised_loss = loss_function(embedding1.double(), embedding2.double(), train_label.double())
+                supervised_loss = loss_function(
+                    embedding1.double(), cov1, embedding2.double(), cov2, train_label.double(), include_std=include_std
+                )
                 supervised_loss = supervised_loss.to(device)
                 supervised_loss.backward()
                 optimizer.step()
 
         scheduler.step()
+        if (epoch+1) % 5 == 0 and epoch != 0:
+            model.save_with_params_to(os.path.join(output, f"checkpoint={epoch+1}.pt"))
 
     logger.info('Training finished.')
     return model

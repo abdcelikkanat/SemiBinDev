@@ -61,49 +61,73 @@ class Semi_encoding_single(torch.nn.Module):
     """
     Model for k-mer features
     """
-    def __init__(self, num):
+    def __init__(self, num, include_std = False):
         super(Semi_encoding_single, self).__init__()
-        self.encoder1 = torch.nn.Sequential(
-            Linear(num, 512),
-            nn.BatchNorm1d(512),
-            LeakyReLU(),
-            nn.Dropout(0.2),
-            Linear(512, 512),
-            nn.BatchNorm1d(512),
-            LeakyReLU(),
-            nn.Dropout(0.2),
-            Linear(512, 100),
-        )
+        # self.encoder1 = torch.nn.Sequential(
+        #     Linear(num, 512),
+        #     nn.BatchNorm1d(512),
+        #     LeakyReLU(),
+        #     nn.Dropout(0.2),
+        #     Linear(512, 512),
+        #     nn.BatchNorm1d(512),
+        #     LeakyReLU(),
+        #     nn.Dropout(0.2),
+        #     Linear(512, 100),
+        # )
+        #
+        # self.decoder1 = torch.nn.Sequential(
+        #     Linear(100, 512),
+        #     nn.BatchNorm1d(512),
+        #     LeakyReLU(),
+        #     nn.Dropout(0.2),
+        #     Linear(512, 512),
+        #     nn.BatchNorm1d(512),
+        #     LeakyReLU(),
+        #     nn.Dropout(0.2),
+        #     Linear(512, num),
+        #     nn.Softmax(dim=1),
+        # )
+        self.include_std = include_std
 
-        self.decoder1 = torch.nn.Sequential(
-            Linear(100, 512),
-            nn.BatchNorm1d(512),
-            LeakyReLU(),
+        self.encoder1 = torch.nn.Sequential(
+            Linear(num, 512, dtype=torch.float),
+            nn.BatchNorm1d(512, dtype=torch.float),
+            nn.Sigmoid(),
             nn.Dropout(0.2),
-            Linear(512, 512),
-            nn.BatchNorm1d(512),
-            LeakyReLU(),
+            Linear(512, 256, dtype=torch.float)
+        )
+        self.encoder1_logcov = torch.nn.Sequential(
+            Linear(num, 512, dtype=torch.float),
+            nn.BatchNorm1d(512, dtype=torch.float),
+            nn.Sigmoid(),
             nn.Dropout(0.2),
-            Linear(512, num),
-            nn.Softmax(dim=1),
+            Linear(512, 256, dtype=torch.float)
         )
 
     def forward(self, input1, input2):
-        print("I'm here! :)", input1.shape)
 
-        return self.encoder1(input1), self.encoder1(input2)
+        if not self.include_std:
 
-    def decoder(self, input1, input2):
-        return self.decoder1(input1), self.decoder1(input2)
+            return self.encoder1(input1), None, self.encoder1(input2), None
+
+        else:
+
+            return self.encoder1(input1), torch.exp(self.encoder1_logcov(input1)), self.encoder1(input2), torch.exp(self.encoder1_logcov(input2))
+
+    # def decoder(self, input1, input2):
+    #     return self.decoder1(input1), self.decoder1(input2)
 
     def embedding(self, input):
-        return self.encoder1(input)
+        if not self.include_std:
+            return self.encoder1(input)
+        else:
+            return self.encoder1(input), self.encoder1_logcov(input)
 
     def save_with_params_to(self, path):
         torch.save({
                     'model_name': 'Semi_encoding_single',
                     'model_state_dict': self.state_dict(),
-                    'params': [self.encoder1[0].in_features],
+                    'params': [self.encoder1[0].in_features, self.include_std],
                     }, path)
 
 

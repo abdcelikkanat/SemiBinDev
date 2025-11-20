@@ -553,6 +553,21 @@ def parse_args(args):
                        default=None,
                        )
 
+        p.add_argument('-include_std', '--include_std',
+                       required=False,
+                       type=int,
+                       help='Check if standard deviation is included or not',
+                       dest='include_std',
+                       default=0,
+                       )
+        p.add_argument('-checkpoint', '--checkpoint',
+                       required=False,
+                       type=str,
+                       help='Checkpoint model path',
+                       dest='checkpoint',
+                       default="",
+                       )
+
     for p in [generate_cannot_links, generate_sequence_features_single, generate_sequence_features_multi, single_easy_bin, multi_easy_bin]:
         p.add_argument('--ml-threshold',
                        required=False,
@@ -1064,10 +1079,9 @@ def generate_sequence_features_multi(logger, args):
     return sample_list
 
 
-def training(logger, contig_fasta,
-             data, data_split, cannot_link,
-             *, output, device, mode,
-             args):
+def training(
+        include_std, checkpoint_path, logger, contig_fasta, data, data_split, cannot_link, *, output, device, mode, args
+):
     """
     Training the model
 
@@ -1082,6 +1096,7 @@ def training(logger, contig_fasta,
         data_ = pd.read_csv(data[0], index_col=0)
         col_name = data_.columns[-1].split('_')[-1]
         is_combined = col_name != 'var'
+        print(f"\t- I. BEN: We're in training function and mode is 'single'!")
 
     else:
         logger.info('Start training from multiple samples.')
@@ -1112,15 +1127,13 @@ def training(logger, contig_fasta,
             prodigal_output_faa=args.prodigal_output_faa,
             orf_finder=args.orf_finder)
     else:
-        model = train_self(logger,
-                           data,
-                           data_split,
-                           is_combined,
-                           args.batchsize,
-                           args.epoches,
-                           device,
-                           args.num_process,
-                           mode)
+        print(f"\t- II. BEN: We're in training function to call the train_self method here!")
+        model = train_self(
+            include_std, checkpoint_path, output, logger, data, data_split, is_combined,
+            args.batchsize, args.epoches, device, args.num_process, mode
+        )
+
+    print(f"\t- V. BEN: We're saving the model.")
     model.save_with_params_to(os.path.join(output, 'model.pt'))
 
 
@@ -1204,9 +1217,9 @@ def binning_short(logger, data, minfasta,
         minfasta=minfasta)
 
 
-def single_easy_binning(logger, args, binned_length,
-                        must_link_threshold,
-                        contig_dict, device):
+def single_easy_binning(
+        include_std, checkpoint_path, logger, args, binned_length, must_link_threshold, contig_dict, device
+):
     """
     contain `generate_cannot_links`, `generate_sequence_features_single`, `train`, `bin` in one command for single-sample and co-assembly binning
     """
@@ -1260,13 +1273,11 @@ def single_easy_binning(logger, args, binned_length,
         else:
             fasta = None
             cannot_link = None
-        training(logger, fasta,
-                 [data_path], [data_split_path],
-                 cannot_link=cannot_link,
-                 output=args.output,
-                 device=device,
-                 mode='single',
-                 args=args)
+
+        training(
+            include_std, checkpoint_path, logger, fasta, [data_path], [data_split_path],
+            cannot_link=cannot_link, output=args.output,  device=device, mode='single', args=args
+        )
 
     binning_kwargs = {
         'logger': logger,
@@ -1559,15 +1570,24 @@ def main2(raw_args=None, is_semibin2=True):
                     args=args)
 
         elif args.cmd == 'train_self':
-            training(logger,
-                    contig_fasta=None,
-                    data=args.data,
-                    data_split=args.data_split,
-                    cannot_link=None,
-                    output=args.output,
-                    device=device,
-                    mode=args.mode,
-                    args=args)
+
+            print(f"\t- BEN: Train Self")
+
+            include_std = args.include_std
+            checkpoint_path = None if args.checkpoint == "" else args.checkpoint
+
+            training(
+                include_std, checkpoint_path,
+                logger,
+                contig_fasta=None,
+                data=args.data,
+                data_split=args.data_split,
+                cannot_link=None,
+                output=args.output,
+                device=device,
+                mode=args.mode,
+                args=args
+            )
 
 
         elif args.cmd == 'bin':
@@ -1583,6 +1603,9 @@ def main2(raw_args=None, is_semibin2=True):
                     output=args.output, device=device, args=args)
 
         elif args.cmd == 'single_easy_bin':
+
+            print(f"\t- BEN: Single Easy Binning")
+
             check_install(False, args.orf_finder, allow_missing_mmseqs2=(args.environment is not None or args.training_type == 'self'))
             if args.environment is not None:
                 if args.depth_metabat2 is None:
@@ -1591,13 +1614,11 @@ def main2(raw_args=None, is_semibin2=True):
                             f"Error: provided pretrained model only used in single-sample binning!\n")
                         sys.exit(1)
 
+            include_std = args.include_std
+            checkpoint_path = None if args.checkpoint == "" else args.checkpoint
             single_easy_binning(
-                logger,
-                args,
-                binned_length,
-                must_link_threshold,
-                contig_dict,
-                device)
+                include_std, checkpoint_path, logger, args, binned_length, must_link_threshold, contig_dict, device
+            )
 
         elif args.cmd == 'multi_easy_bin':
             check_install(False, args.orf_finder, args.training_type == 'self')
