@@ -24,7 +24,7 @@ def parse_args(args):
     BooleanOptionalAction = getattr(argparse, 'BooleanOptionalAction', 'store_true')
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-                                    description='Neural network-based binning of metagenomic contigs',
+                                    description='SemiBin2 --> ICLR',
                                     epilog='For more information, see https://semibin.readthedocs.io/en/latest/subcommands/')
 
     parser.version = __version__
