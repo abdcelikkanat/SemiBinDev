@@ -13,3 +13,6 @@ __pycache__/
 
 #
 .idea
+RUN_*
+.snakemake
+logs

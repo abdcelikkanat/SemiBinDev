@@ -18,7 +18,7 @@ EPOCHS=[f"{epoch}" for epoch in range(5, config['epochs_num'], 5)]
 rule all:
     input:
         expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "checkm2", "quality_report.tsv"), sample=SAMPLES),
-        expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "epoch_{epoch}", "checkm2", "quality_report.tsv"), sample=SAMPLES, epoch=EPOCHS),
+#        expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "epoch_{epoch}", "checkm2", "quality_report.tsv"), sample=SAMPLES, epoch=EPOCHS),
 
 rule semibin_v220:
     conda: "semibiniclr"
@@ -54,7 +54,7 @@ rule semibin_v220:
             -p {resources.threads} \
             --epochs {params.epochs_num} \
             --include_std 1 \
-            --checkpoint params.checkpoint_path
+            --checkpoint {params.checkpoint_path}
         """
 
 rule checkm2_semibin2_main:

@@ -1575,7 +1575,7 @@ def main2(raw_args=None, is_semibin2=True):
 
             include_std = args.include_std
             checkpoint_path = None if args.checkpoint == "" else args.checkpoint
-
+            print(f"\t Checkpoint file: {checkpoint_path}")
             training(
                 include_std, checkpoint_path,
                 logger,
