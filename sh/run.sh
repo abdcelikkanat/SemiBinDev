@@ -17,7 +17,7 @@ set -eu
 
 # Define global variables
 BASE_DIR=/home/cs.aau.dk/zs74qz/workspace/SemiBinICLR
-CONDA_ENV_DIR=~/miniconda3/envs
+CONDA_ENV_DIR=~/.conda/envs
 SEMIBIN2_ENV_NAME=semibiniclr
 
 # Load the required modules
