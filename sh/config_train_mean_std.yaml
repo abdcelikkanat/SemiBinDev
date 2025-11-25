@@ -1,0 +1,120 @@
+# Define input output paths
+paths:
+   input_dir: "/projects/dark_science/methylation_binning/development/data/datasets/"
+   output_dir: "/home/cs.aau.dk/zs74qz/workspace/SemiBinICLR/outputs_iclr_train_mean_std/"
+   venv_dir: "/home/cs.aau.dk/zs74qz/.conda/envs/"
+   checkm2: "/home/cs.aau.dk/zs74qz/tools/CheckM2-1.0.1/bin/checkm2"
+   temp_dir: "/home/cs.aau.dk/zs74qz/workspace/SemiBinICLR/outputs/temp"
+   container_path: "/home/cs.aau.dk/zs74qz/workspace/MethylBinProject/bio_tools_sandbox"
+   checkpoint_path: "/projects/dark_science/methylation_binning/article/outputs/nanomotif_v1.1.0/fecal_deep/SemiBin2/bins/model.pt"
+
+# Define partitions
+partitions:
+   cpu: "zen5" #"high-mem" #"zen5" #"high-mem" #"general"
+
+# Define database paths
+databases:
+   checkm2: "/databases/checkm2/CheckM2_database/uniref100.KO.1.dmnd"
+
+# Define sequence preprocessing operations
+filtering:
+   min_contig_len: 3000
+
+# Define the number of epochs
+epochs_num: 25
+
+# Define sample list
+samples:
+#   anaerobic_digester:
+#      name: "anaerobic_digester"
+#      bam: "anaerobic_digester/flye/1_cov.bam"
+#      eukfilt: "anaerobic_digester/flye/assembly.fasta"
+#      bed: "anaerobic_digester/flye/pileup.bed"
+   fecal_deep:
+      name: "fecal_deep"
+      bam: "fecal_deep/myloasm/1_cov.bam"
+      eukfilt: "fecal_deep/myloasm/eukfilt_assembly.fasta"
+      bed: "fecal_deep/myloasm/u6343517.bed"
+
+#   soil_mfd02199:
+#      name: "soil_mfd02199"
+#      bam: "soil_mfd02199/flye/1_cov.bam"
+#      eukfilt: "soil_mfd02199/flye/MFD02199.fasta"
+#      bed: "soil_mfd02199/flye/mod_pileup.bed.gz"
+#   soil_mfd02809:
+#      name: "soil_mfd02809"
+#      bam: "soil_mfd02809/flye/1_cov.bam"
+#      eukfilt: "soil_mfd02809/flye/MFD02809.fasta"
+#      bed: "soil_mfd02809/flye/mod_pileup.bed.gz"
+#   soil_mfd03323:
+#      name: "soil_mfd03323"
+#      bam: "soil_mfd03323/flye/1_cov.bam"
+#      eukfilt: "soil_mfd03323/flye/eukfilt_assembly.fasta"
+#      bed: "soil_mfd03323/flye/mod_pileup.bed.gz"
+#   soil_mfd05841:
+#      name: "soil_mfd05841"
+#      bam: "soil_mfd05841/flye/1_cov.bam"
+#      eukfilt: "soil_mfd05841/flye/MFD05841.fasta"
+#      bed: "soil_mfd05841/flye/mod_pileup.bed.gz"
+#   soil_mfd06714:
+#      name: "soil_mfd06714"
+#      bam: "soil_mfd06714/flye/1_cov.bam"
+#      eukfilt: "soil_mfd06714/flye/MFD06714.fasta"
+#      bed: "soil_mfd06714/flye/mod_pileup.bed.gz"
+#   WW-IL-01:
+#      name: "WW-IL-01"
+#      bam: "WW-IL-01/flye/1_cov.bam"
+#      eukfilt: "WW-IL-01/flye/eukfilt_assembly.fasta"
+#      bed: "WW-IL-01/flye/mod_pileup.bed.gz"
+#   WW-IN-06:
+#      name: "WW-IN-06"
+#      bam: "WW-IN-06/flye/1_cov.bam"
+#      eukfilt: "WW-IN-06/flye/eukfilt_assembly.fasta"
+#      bed: "WW-IN-06/flye/mod_pileup.bed.gz"
+#   WW-NL-09:
+#      name: "WW-NL-09"
+#      bam: "WW-NL-09/flye/1_cov.bam"
+#      eukfilt: "WW-NL-09/flye/eukfilt_assembly.fasta"
+#      bed: "WW-NL-09/flye/mod_pileup.bed.gz"
+#   WW-US2-26:
+#      name: "WW-US2-26"
+#      bam: "WW-US2-26/flye/1_cov.bam"
+#      eukfilt: "WW-US2-26/flye/096-US2-26_assembly.fasta"
+#      bed: "WW-US2-26/flye/mod_pileup.bed.gz"
+#   WW_90_US1_124:
+#      name: "WW_90_US1_124"
+#      bam: "WW_90_US1_124/flye/1_cov.bam"
+#      eukfilt: "WW_90_US1_124/flye/090-US1-124_assembly.fasta"
+#      bed: "WW_90_US1_124/flye/mod_pileup.bed.gz"
+####################################
+#   S1:
+#      name: "S1"
+#      bam: "v5kHz_6mA_4mC_5mC/S1/1_cov.bam"
+#      eukfilt: "v5kHz_6mA_4mC_5mC/S1/eukfilt_assembly.fasta"
+#      bed: "v5kHz_6mA_4mC_5mC/S1/pileup.bed"
+#   S2:
+#      name: "S2"
+#      bam: "v5kHz_6mA_4mC_5mC/S2/1_cov.bam"
+#      eukfilt: "v5kHz_6mA_4mC_5mC/S2/eukfilt_assembly.fasta"
+#      bed: "v5kHz_6mA_4mC_5mC/S2/pileup.bed"
+#   S3:
+#      name: "S3"
+#      bam: "v5kHz_6mA_4mC_5mC/S3/1_cov.bam"
+#      eukfilt: "v5kHz_6mA_4mC_5mC/S3/eukfilt_assembly.fasta"
+#      bed: "v5kHz_6mA_4mC_5mC/S3/pileup.bed"
+#   S4:
+#      name: "S4"
+#      bam: "v5kHz_6mA_4mC_5mC/S4/1_cov.bam"
+#      eukfilt: "v5kHz_6mA_4mC_5mC/S4/eukfilt_assembly.fasta"
+#      bed: "v5kHz_6mA_4mC_5mC/S4/pileup.bed"
+#   S5:
+#      name: "S5"
+#      bam: "v5kHz_6mA_4mC_5mC/S5/1_cov.bam"
+#      eukfilt: "v5kHz_6mA_4mC_5mC/S5/eukfilt_assembly.fasta"
+#      bed: "v5kHz_6mA_4mC_5mC/S5/pileup.bed"
+
+#   soil_mfd02809:
+#      name: "soil_mfd02809"
+#      bam: "soil_mfd02809/1_cov.bam"
+#      eukfilt: "soil_mfd02809/eukfilt_assembly.fasta"
+#      bed: "soil_mfd02809/mod_pileup.bed"

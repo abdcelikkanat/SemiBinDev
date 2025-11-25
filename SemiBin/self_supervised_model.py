@@ -11,11 +11,13 @@ def loss_function(embedding1, cov1, embedding2, cov2, label, include_std=False):
 
     if not include_std:
 
-        # Compute the term (m_i - m_j)^2
-        mean_squared_diff = (embedding1 - embedding2) ** 2 * 0.5
+        relu = torch.nn.ReLU()
+        d = torch.norm(embedding1 - embedding2, p=2, dim=1)
+        square_pred = torch.square(d)
+        margin_square = torch.square(relu(1 - d))
+        supervised_loss = torch.mean(label * square_pred + (1 - label) * margin_square)
 
-        # Compute the log expectation
-        log_expectation = -0.5 * (mean_squared_diff).sum(dim=1)
+        return supervised_loss
 
     else:
         cov1, cov2 = cov1.double(), cov2.double()
@@ -26,7 +28,7 @@ def loss_function(embedding1, cov1, embedding2, cov2, label, include_std=False):
         # Compute the log expectation
         log_expectation = -0.5 * (mean_squared_diff).sum(dim=1)
 
-    return torch.nn.functional.binary_cross_entropy(torch.exp(log_expectation), label, reduction='mean')
+        return torch.nn.functional.binary_cross_entropy(torch.exp(log_expectation), label, reduction='mean')
 
 
 def train_self(

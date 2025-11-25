@@ -90,18 +90,26 @@ class Semi_encoding_single(torch.nn.Module):
         self.include_std = include_std
 
         self.encoder1 = torch.nn.Sequential(
-            Linear(num, 512, dtype=torch.float),
-            nn.BatchNorm1d(512, dtype=torch.float),
-            nn.Sigmoid(),
+            Linear(num, 512),
+            nn.BatchNorm1d(512),
+            LeakyReLU(),
             nn.Dropout(0.2),
-            Linear(512, 256, dtype=torch.float)
+            Linear(512, 512),
+            nn.BatchNorm1d(512),
+            LeakyReLU(),
+            nn.Dropout(0.2),
+            Linear(512, 100),
         )
         self.encoder1_logcov = torch.nn.Sequential(
-            Linear(num, 512, dtype=torch.float),
-            nn.BatchNorm1d(512, dtype=torch.float),
-            nn.Sigmoid(),
+            Linear(num, 512),
+            nn.BatchNorm1d(512),
+            LeakyReLU(),
             nn.Dropout(0.2),
-            Linear(512, 256, dtype=torch.float)
+            Linear(512, 512),
+            nn.BatchNorm1d(512),
+            LeakyReLU(),
+            nn.Dropout(0.2),
+            Linear(512, 100),
         )
 
     def forward(self, input1, input2):
