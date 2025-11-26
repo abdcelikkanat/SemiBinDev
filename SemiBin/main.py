@@ -1137,7 +1137,7 @@ def training(
     model.save_with_params_to(os.path.join(output, 'model.pt'))
 
 
-def binning_preprocess(data, depth_metabat2, model_path, environment, device):
+def binning_preprocess(data, depth_metabat2, model_path, include_std, environment, device):
     import pandas as pd
     from .semi_supervised_model import model_load
     data = pd.read_csv(data, index_col=0)
@@ -1168,14 +1168,15 @@ def binning_preprocess(data, depth_metabat2, model_path, environment, device):
             sys.exit(1)
 
     model = model_load(model_path, device)
+    model.include_std = include_std
 
     return is_combined, n_sample, data, model
 
 def binning_long(logger, data, minfasta, binned_length, contig_dict,
-        model_path, output, device, environment, *, args):
+        model_path, include_std, output, device, environment, *, args):
     from .long_read_cluster import cluster_long_read
     logger.info('Start binning.')
-    is_combined, n_sample, data, model = binning_preprocess(data, getattr(args, 'depth_metabat2', None), model_path, environment, device)
+    is_combined, n_sample, data, model = binning_preprocess(data, getattr(args, 'depth_metabat2', None), model_path, include_std, environment, device)
     cluster_long_read(logger,
                       model,
                       data,
@@ -1597,8 +1598,9 @@ def main2(raw_args=None, is_semibin2=True):
                     device=device, args=args)
 
         elif args.cmd == 'bin_long':
+            print(f"\t- BEN: Binning long reads")
             binning_long(logger, args.data, args.minfasta_kb * 1000,
-                    binned_length, environment=args.environment,
+                    binned_length, environment=args.environment, include_std=args.include_std,
                     contig_dict=contig_dict, model_path=args.model_path,
                     output=args.output, device=device, args=args)
 

@@ -65,8 +65,22 @@ def cluster_long_read(logger, model, data, device, is_combined,
 
     with torch.no_grad():
         model.eval()
+
         x = torch.from_numpy(train_data_input).to(device)
-        embedding = model.embedding(x.float()).detach().cpu().numpy()
+
+        if model.include_std:
+            mean, vars = model.embedding(x.float())
+            mean = mean.detach().cpu().numpy()
+            vars = np.exp(vars.detach().cpu().numpy())
+
+            samples_num = 100
+            embedding = np.mean(
+                mean[:, :, np.newaxis] + np.sqrt(vars)[:, :, np.newaxis] * np.random.randn(mean.shape[0], mean.shape[1], samples_num),
+                axis=-1
+            )
+
+        else:
+            embedding = model.embedding(x.float()).detach().cpu().numpy()
 
     length_weight = np.array(
         [len(contig_dict[name]) for name in contig_list])

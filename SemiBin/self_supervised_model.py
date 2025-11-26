@@ -66,7 +66,7 @@ def train_self(
             # model = torch.load(checkpoint_path, map_location='cpu')
             model = model_load(checkpoint_path, device, warn_on_old_format=True)
             model.include_std = include_std
-            # raise NotImplementedError("For checkpoint, it has to be implemented!")
+            # raise NotImplementedError("For checkpoint, it has to be implemented!", include_std, model.include_std)
         else:
             model = Semi_encoding_single(train_data.shape[1], include_std=include_std)
     else:
