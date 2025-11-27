@@ -20,15 +20,21 @@ def loss_function(embedding1, cov1, embedding2, cov2, label, include_std=False):
         return supervised_loss
 
     else:
+        relu = torch.nn.ReLU()
+
         cov1, cov2 = cov1.double(), cov2.double()
 
         # Compute the term (m_i - m_j)^2
         mean_squared_diff = (embedding1 - embedding2) ** 2 * (0.5 / (cov1 + cov2))
 
         # Compute the log expectation
-        log_expectation = -0.5 * (mean_squared_diff).sum(dim=1)
+        d = -0.5 * (mean_squared_diff).sum(dim=1)
 
-        return torch.nn.functional.binary_cross_entropy(torch.exp(log_expectation), label, reduction='mean')
+        square_pred = torch.square(d)
+        margin_square = torch.square(relu(1 - d))
+        supervised_loss = torch.mean(label * square_pred + (1 - label) * margin_square)
+
+        return supervised_loss
 
 
 def train_self(
@@ -74,9 +80,26 @@ def train_self(
 
     model = model.to(device)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
-    scheduler = lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.9)
+    if include_std:
+        model_params = []
+        for name, param in model.named_parameters():
+            if 'logcov' in name:
+                param.requires_grad = True
+                model_params.append(param)
+            else:
+                param.requires_grad = False
+    else:
+        model_params = []
+        for name, param in model.named_parameters():
+            if 'logcov' not in name:
+                param.requires_grad = True
+                model_params.append(param)
+            else:
+                param.requires_grad = False
 
+    optimizer = torch.optim.Adam(model_params, lr=1e-3)
+    # optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    scheduler = lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.9)
     for epoch in tqdm(range(epoches)):
         for data_index, (datapath, data_split_path) in enumerate(zip(datapaths, data_splits)):
             if epoch == 0:

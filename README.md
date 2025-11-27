@@ -50,3 +50,11 @@ pip install .; SemiBin2 single_easy_bin --input-fasta {input.i} \
             -p 1 \
             --epochs 2 --include_std 0 --checkpoint ""
 ```
+```bash
+pip install .; SemiBin2 bin_long \ 
+        --input-fasta ~/workspace/datasets/fecal_deep/eukfilt_assembly.fasta \
+         --data ./outputs/fecal_deep/data.csv \ 
+         --model ./outputs/fecal_deep/model.pt \ 
+         --output outputs/test3 \ 
+         -p 16 --include_std 1
+```
