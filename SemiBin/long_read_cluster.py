@@ -1,6 +1,8 @@
 import os
 import torch
 import numpy as np
+from torch.nn.functional import embedding
+
 from .utils import write_bins
 from .markers import estimate_seeds, get_marker
 from sklearn.cluster import dbscan
@@ -70,14 +72,15 @@ def cluster_long_read(logger, model, data, device, is_combined,
 
         if model.include_std:
             mean, vars = model.embedding(x.float())
-            mean = mean.detach().cpu().numpy()
+            # mean = mean.detach().cpu().numpy()
             vars = np.exp(vars.detach().cpu().numpy())
+            embedding = mean
 
-            samples_num = 100
-            embedding = np.mean(
-                mean[:, :, np.newaxis] + np.sqrt(vars)[:, :, np.newaxis] * np.random.randn(mean.shape[0], mean.shape[1], samples_num),
-                axis=-1
-            )
+            # samples_num = 100
+            # embedding = np.mean(
+            #     mean[:, :, np.newaxis] + np.sqrt(vars)[:, :, np.newaxis] * np.random.randn(mean.shape[0], mean.shape[1], samples_num),
+            #     axis=-1
+            # )
 
         else:
             embedding = model.embedding(x.float()).detach().cpu().numpy()
@@ -114,12 +117,32 @@ def cluster_long_read(logger, model, data, device, is_combined,
     output_bin_path = os.path.join(out, 'output_bins')
 
     logger.debug('Running DBSCAN.')
-    dist_matrix = kneighbors_graph(
-        embedding_new,
-        n_neighbors=min(200, embedding_new.shape[0] - 1),
-        mode='distance',
-        p=2,
-        n_jobs=args.num_process)
+    if not model.include_std:
+        dist_matrix = kneighbors_graph(
+            embedding_new,
+            n_neighbors=min(200, embedding_new.shape[0] - 1),
+            mode='distance',
+            p=2,
+            n_jobs=args.num_process)
+    else:
+        def my_distance(idx1, idx2):
+            idx1, idx2 = int(idx1), int(idx2)
+
+            return (
+                    (embedding_new[idx1] - embedding_new[idx2])**2 * (0.25 / np.append(vars[idx1] - vars[idx2],1))
+            ).sum(axis=-1)
+
+        from sklearn.neighbors import NearestNeighbors
+
+        nbrs = NearestNeighbors(
+            n_neighbors=min(200, embedding_new.shape[0] - 1),
+            metric=my_distance,
+            n_jobs=args.num_process,
+            algorithm='brute'
+        )
+        nbrs.fit(np.arange(0, embedding_new.shape[0]).reshape(-1, 1))
+
+        dist_matrix = nbrs.kneighbors_graph(np.asarray(list(range(embedding_new.shape[0])), dtype=int)[:, np.newaxis])
 
     dbscan_results = []
     for eps_value in [0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55]:
