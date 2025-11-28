@@ -25,10 +25,7 @@ def loss_function(embedding1, cov1, embedding2, cov2, label, include_std=False):
         cov1, cov2 = cov1.double(), cov2.double()
 
         # Compute the term (m_i - m_j)^2
-        mean_squared_diff = (embedding1 - embedding2) ** 2 * (0.5 / (cov1 + cov2))
-
-        # Compute the log expectation
-        d = -0.5 * (mean_squared_diff).sum(dim=1)
+        d = ( (embedding1 - embedding2)**2 * (0.25 / (cov1 + cov2 + 1e-8)) ).sum(dim=1)
 
         square_pred = torch.square(d)
         margin_square = torch.square(relu(1 - d))

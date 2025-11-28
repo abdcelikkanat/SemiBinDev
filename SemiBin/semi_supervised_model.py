@@ -129,7 +129,7 @@ class Semi_encoding_single(torch.nn.Module):
         if not self.include_std:
             return self.encoder1(input)
         else:
-            return self.encoder1(input), self.encoder1_logcov(input)
+            return self.encoder1(input), torch.exp(self.encoder1_logcov(input))
 
     def save_with_params_to(self, path):
         torch.save({
