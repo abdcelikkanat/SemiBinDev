@@ -76,11 +76,12 @@ def cluster_long_read(logger, model, data, device, is_combined,
             vars = vars.detach().cpu().numpy()
             # embedding = mean
 
-            samples_num = 100
-            embedding = np.mean(
-                mean[:, :, np.newaxis] + np.sqrt(vars)[:, :, np.newaxis] * np.random.randn(mean.shape[0], mean.shape[1], samples_num),
-                axis=-1
-            )
+            samples_num = 111
+            # embedding = np.mean(
+            #     mean[:, :, np.newaxis] + np.sqrt(vars)[:, :, np.newaxis] * np.random.randn(mean.shape[0], mean.shape[1], samples_num),
+            #     axis=-1
+            # )
+            embedding = mean[:, :, np.newaxis] + np.sqrt(vars)[:, :, np.newaxis] * np.random.randn(mean.shape[0], mean.shape[1], samples_num)
 
         else:
             embedding = model.embedding(x.float()).detach().cpu().numpy()
@@ -92,7 +93,13 @@ def cluster_long_read(logger, model, data, device, is_combined,
         depth = data.values[:, 136:len(data.values[0])].astype(np.float32)
         mean_index = [2 * temp for temp in range(n_sample)]
         depth = depth[:, mean_index]
-        embedding_new = np.concatenate((embedding, np.log(depth)), axis=1)
+        if not model.include_std:
+            embedding_new = np.concatenate((embedding, np.log(depth)), axis=1)
+        else:
+            embedding_new = np.concatenate(
+                (embedding, np.repeat(np.log(depth)[:, np.newaxis], embedding.shape[-1], axis=-1)), axis=1
+            )
+
     else:
         embedding_new = embedding
 
@@ -117,33 +124,30 @@ def cluster_long_read(logger, model, data, device, is_combined,
     output_bin_path = os.path.join(out, 'output_bins')
 
     logger.debug('Running DBSCAN.')
-    # if not model.include_std:
-    if True:
+    if not model.include_std:
+    # if True:
         dist_matrix = kneighbors_graph(
             embedding_new,
             n_neighbors=min(200, embedding_new.shape[0] - 1),
             mode='distance',
             p=2,
             n_jobs=args.num_process)
-    # else:
-    #     def my_distance(idx1, idx2):
-    #         idx1, idx2 = int(idx1), int(idx2)
-    #
-    #         return (
-    #                 (embedding_new[idx1] - embedding_new[idx2])**2 * (0.25 / np.append(vars[idx1] - vars[idx2],1))
-    #         ).sum(axis=-1)
-    #
-    #     from sklearn.neighbors import NearestNeighbors
-    #
-    #     nbrs = NearestNeighbors(
-    #         n_neighbors=min(200, embedding_new.shape[0] - 1),
-    #         metric=my_distance,
-    #         n_jobs=args.num_process,
-    #         algorithm='brute'
-    #     )
-    #     nbrs.fit(np.arange(0, embedding_new.shape[0]).reshape(-1, 1))
-    #
-    #     dist_matrix = nbrs.kneighbors_graph(np.asarray(list(range(embedding_new.shape[0])), dtype=int)[:, np.newaxis])
+    else:
+        def my_distance(idx1, idx2):
+            idx1, idx2 = int(idx1), int(idx2)
+            return np.mean(np.linalg.norm(embedding_new[idx1] - embedding_new[idx2], axis=-1)**2)
+
+        from sklearn.neighbors import NearestNeighbors
+
+        nbrs = NearestNeighbors(
+            n_neighbors=min(200, embedding_new.shape[0] - 1),
+            metric=my_distance,
+            n_jobs=args.num_process,
+            algorithm='brute'
+        )
+        nbrs.fit(np.arange(0, embedding_new.shape[0]).reshape(-1, 1))
+
+        dist_matrix = nbrs.kneighbors_graph(np.asarray(list(range(embedding_new.shape[0])), dtype=int)[:, np.newaxis])
 
     dbscan_results = []
     for eps_value in [0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55]:
