@@ -135,7 +135,7 @@ def cluster_long_read(logger, model, data, device, is_combined,
     else:
         def my_distance(idx1, idx2):
             idx1, idx2 = int(idx1), int(idx2)
-            return np.mean(np.linalg.norm(embedding_new[idx1] - embedding_new[idx2], axis=-1))
+            return np.mean(np.linalg.norm(embedding_new[idx1] - embedding_new[idx2], axis=0))
 
         from sklearn.neighbors import NearestNeighbors
 
