@@ -147,7 +147,10 @@ def cluster_long_read(logger, model, data, device, is_combined,
         )
         nbrs.fit(np.arange(0, embedding_new.shape[0]).reshape(-1, 1))
 
-        dist_matrix = nbrs.kneighbors_graph(np.asarray(list(range(embedding_new.shape[0])), dtype=int)[:, np.newaxis])
+        dist_matrix = nbrs.kneighbors_graph(
+            np.asarray(list(range(embedding_new.shape[0])), dtype=int)[:, np.newaxis],
+            n_neighbors=min(200, embedding_new.shape[0] - 1), mode='distance',
+        )
 
     dbscan_results = []
     for eps_value in [0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55]:
