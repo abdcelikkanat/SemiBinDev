@@ -81,7 +81,8 @@ def cluster_long_read(logger, model, data, device, is_combined,
             #     mean[:, :, np.newaxis] + np.sqrt(vars)[:, :, np.newaxis] * np.random.randn(mean.shape[0], mean.shape[1], samples_num),
             #     axis=-1
             # )
-            embedding = mean[:, :, np.newaxis] + np.sqrt(vars)[:, :, np.newaxis] * np.random.randn(mean.shape[0], mean.shape[1], samples_num)
+            # embedding = mean[:, :, np.newaxis] + np.sqrt(vars)[:, :, np.newaxis] * np.random.randn(mean.shape[0], mean.shape[1], samples_num)
+            embedding = mean
 
         else:
             embedding = model.embedding(x.float()).detach().cpu().numpy()
@@ -93,12 +94,12 @@ def cluster_long_read(logger, model, data, device, is_combined,
         depth = data.values[:, 136:len(data.values[0])].astype(np.float32)
         mean_index = [2 * temp for temp in range(n_sample)]
         depth = depth[:, mean_index]
-        if not model.include_std:
-            embedding_new = np.concatenate((embedding, np.log(depth)), axis=1)
-        else:
-            embedding_new = np.concatenate(
-                (embedding, np.repeat(np.log(depth)[:, np.newaxis], embedding.shape[-1], axis=-1)), axis=1
-            )
+        # if not model.include_std:
+        embedding_new = np.concatenate((embedding, np.log(depth)), axis=1)
+        # else:
+        #     embedding_new = np.concatenate(
+        #         (embedding, np.repeat(np.log(depth)[:, np.newaxis], embedding.shape[-1], axis=-1)), axis=1
+        #     )
 
     else:
         embedding_new = embedding
@@ -135,8 +136,13 @@ def cluster_long_read(logger, model, data, device, is_combined,
     else:
         def my_distance(idx1, idx2):
             idx1, idx2 = int(idx1), int(idx2)
-            return np.linalg.norm(np.mean(embedding_new[idx1], axis=-1) - np.mean(embedding_new[idx2], axis=-1), axis=-1)
-            return np.mean(np.linalg.norm(embedding_new[idx1] - embedding_new[idx2], axis=0))
+
+            d= (embedding_new[idx1, :] - embedding_new[idx2, :])**2 * (0.25 / np.concatenate((vars[idx1, :] + vars[idx2, :] + 1e-8, np.asarray([1.]))))
+            d = np.exp(-d.sum())
+            return d
+
+            # return np.linalg.norm(np.mean(embedding_new[idx1], axis=-1) - np.mean(embedding_new[idx2], axis=-1), axis=-1) #checking
+            # return np.mean(np.linalg.norm(embedding_new[idx1] - embedding_new[idx2], axis=0)) # correct expection
 
         from sklearn.neighbors import NearestNeighbors
 
