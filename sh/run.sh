@@ -1,12 +1,12 @@
 #!/usr/bin/bash -l
-#SBATCH --job-name=RUN
+#SBATCH --job-name=REFININGSNAKEMAKE
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --partition=high-mem
+#SBATCH --partition=zen5
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=4G
-#SBATCH --time=1-00:00:00
+#SBATCH --mem=10G
+#SBATCH --time=3-00:00:00
 #SBATCH --mail-type=NONE #---ALL
 #SBATCH --mail-user=abce@cs.aau.dk
 #SBATCH --output=%x_%j.out
@@ -16,15 +16,15 @@
 set -eu
 
 # Define global variables
-BASE_DIR=/home/cs.aau.dk/zs74qz/workspace/SemiBinICLR
+BASE_DIR=/home/cs.aau.dk/zs74qz/workspace/SemiBinRefining
 CONDA_ENV_DIR=~/.conda/envs
-SEMIBIN2_ENV_NAME=semibiniclr
+ENV_NAME=semibinrefining
 
 # Load the required modules
 SNAKEMAKE=/home/cs.aau.dk/zs74qz/.conda/envs/snakemake/bin/snakemake
 
 # Reinstall the Semibin2
-conda activate ${CONDA_ENV_DIR}/semibiniclr
+conda activate ${CONDA_ENV_DIR}/${ENV_NAME}
 pip install ${BASE_DIR}
 
 ${SNAKEMAKE} -s ${BASE_DIR}/sh/Snakefile \

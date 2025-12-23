@@ -1,7 +1,7 @@
 # Define input output paths
 paths:
    input_dir: "/projects/dark_science/methylation_binning/development/data/datasets/"
-   output_dir: "/home/cs.aau.dk/zs74qz/workspace/SemiBinICLR/outputs_iclr/"
+   output_dir: "/home/cs.aau.dk/zs74qz/workspace/SemiBinRefining/outputs_refining/"
    venv_dir: "/home/cs.aau.dk/zs74qz/.conda/envs/"
    checkm2: "/home/cs.aau.dk/zs74qz/tools/CheckM2-1.0.1/bin/checkm2"
    temp_dir: "/home/cs.aau.dk/zs74qz/workspace/SemiBinICLR/outputs/temp"
@@ -24,11 +24,11 @@ epochs_num: 50
 
 # Define sample list
 samples:
-   anaerobic_digester:
-      name: "anaerobic_digester"
-      bam: "anaerobic_digester/flye/1_cov.bam"
-      eukfilt: "anaerobic_digester/flye/assembly.fasta"
-      bed: "anaerobic_digester/flye/pileup.bed"
+#   anaerobic_digester:
+#      name: "anaerobic_digester"
+#      bam: "anaerobic_digester/flye/1_cov.bam"
+#      eukfilt: "anaerobic_digester/flye/assembly.fasta"
+#      bed: "anaerobic_digester/flye/pileup.bed"
    fecal_deep:
       name: "fecal_deep"
       bam: "fecal_deep/myloasm/1_cov.bam"
