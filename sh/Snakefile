@@ -20,8 +20,8 @@ rule all:
     input:
         expand(os.path.join(OUTPUT_DIR,"{sample}","SemiBin2", "bins", "contig_bins.tsv"), sample=SAMPLES),
         expand(os.path.join(OUTPUT_DIR,"{sample}","SemiBin2", "checkm2", "quality_report.tsv"), sample=SAMPLES),
-        expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins"), sample=SAMPLES),
-        # expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "checkm2", "quality_report.tsv"), sample=SAMPLES),
+        #expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinRefining1", "bins"), sample=SAMPLES),
+        expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinRefining1", "checkm2", "quality_report.tsv"), sample=SAMPLES),
         # expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "epoch_{epoch}", "checkm2", "quality_report.tsv"), sample=SAMPLES, epoch=EPOCHS),
 
 rule semibin_v220:
@@ -148,7 +148,7 @@ rule binning_refining1:
         data = os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "bins", "data.csv"),
         model = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinRefining1", "bins", "model.pt"),
     output:
-        dir = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinRefining1", "bins", "output_bins")),
+        dir = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinRefining1", "bins")),
     params:
         semibin_path = os.path.join(ENV_DIR, "semibinrefining", "bin", "SemiBin2"),
         container_path = os.path.join(CONTAINER_PATH, ),
@@ -168,11 +168,11 @@ rule binning_refining1:
             -p {resources.threads}
         """
 
-rule checkm2_semibin2:
+rule checkm2_refining1:
     conda:
        "checkm2_v1.1.0",
     input:
-        output_bins = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinRefining1", "bins", "output_bins", "output_bins"),
+        output_bins = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinRefining1", "bins", "output_bins"),
     output:
         dir = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinRefining1", "checkm2")),
         quality_file = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinRefining1", "checkm2", "quality_report.tsv"),
