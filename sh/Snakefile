@@ -1,5 +1,7 @@
 import os
 
+from sympy import expand
+
 # Config
 configfile: "config.yaml"
 
@@ -20,6 +22,7 @@ rule all:
     input:
         expand(os.path.join(OUTPUT_DIR,"{sample}","SemiBin2", "bins"), sample=SAMPLES),
         expand(os.path.join(OUTPUT_DIR,"{sample}","SemiBin2", "checkm2"), sample=SAMPLES),
+        expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins"), sample=SAMPLES),
         # expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "checkm2", "quality_report.tsv"), sample=SAMPLES),
         # expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "epoch_{epoch}", "checkm2", "quality_report.tsv"), sample=SAMPLES, epoch=EPOCHS),
 
