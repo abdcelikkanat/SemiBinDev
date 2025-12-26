@@ -49,9 +49,9 @@ def get_best_bin(results, contig_to_marker, namelist, contig_dict, minfasta):
         if max_F1 > 0: # if there is a bin with F1 > 0
             return max_bin
 
-def cluster_long_read(logger, model, data, device, is_combined,
-            n_sample, out, contig_dict, *, binned_length, args,
-            minfasta):
+def cluster_long_read(
+        logger, model, data, device, is_combined, n_sample, out, contig_dict, *, binned_length, args, minfasta
+):
     import pandas as pd
     from .utils import norm_abundance
     contig_list = data.index.tolist()
@@ -67,25 +67,8 @@ def cluster_long_read(logger, model, data, device, is_combined,
 
     with torch.no_grad():
         model.eval()
-
         x = torch.from_numpy(train_data_input).to(device)
-
-        if model.include_std:
-            mean, vars = model.embedding(x.float())
-            mean = mean.detach().cpu().numpy()
-            vars = vars.detach().cpu().numpy()
-            # embedding = mean
-
-            samples_num = 111
-            # embedding = np.mean(
-            #     mean[:, :, np.newaxis] + np.sqrt(vars)[:, :, np.newaxis] * np.random.randn(mean.shape[0], mean.shape[1], samples_num),
-            #     axis=-1
-            # )
-            # embedding = mean[:, :, np.newaxis] + np.sqrt(vars)[:, :, np.newaxis] * np.random.randn(mean.shape[0], mean.shape[1], samples_num)
-            embedding = mean
-
-        else:
-            embedding = model.embedding(x.float()).detach().cpu().numpy()
+        embedding = model.embedding(x.float()).detach().cpu().numpy()
 
     length_weight = np.array(
         [len(contig_dict[name]) for name in contig_list])
@@ -94,13 +77,7 @@ def cluster_long_read(logger, model, data, device, is_combined,
         depth = data.values[:, 136:len(data.values[0])].astype(np.float32)
         mean_index = [2 * temp for temp in range(n_sample)]
         depth = depth[:, mean_index]
-        # if not model.include_std:
         embedding_new = np.concatenate((embedding, np.log(depth)), axis=1)
-        # else:
-        #     embedding_new = np.concatenate(
-        #         (embedding, np.repeat(np.log(depth)[:, np.newaxis], embedding.shape[-1], axis=-1)), axis=1
-        #     )
-
     else:
         embedding_new = embedding
 
@@ -125,39 +102,12 @@ def cluster_long_read(logger, model, data, device, is_combined,
     output_bin_path = os.path.join(out, 'output_bins')
 
     logger.debug('Running DBSCAN.')
-    if not model.include_std:
-    # if True:
-        dist_matrix = kneighbors_graph(
-            embedding_new,
-            n_neighbors=min(200, embedding_new.shape[0] - 1),
-            mode='distance',
-            p=2,
-            n_jobs=args.num_process)
-    else:
-        def my_distance(idx1, idx2):
-            idx1, idx2 = int(idx1), int(idx2)
-
-            d= (embedding_new[idx1, :] - embedding_new[idx2, :])**2 * (0.25 / np.concatenate((vars[idx1, :] + vars[idx2, :] + 1e-8, np.asarray([1.]))))
-            d = np.exp(-d.sum())
-            return d
-
-            # return np.linalg.norm(np.mean(embedding_new[idx1], axis=-1) - np.mean(embedding_new[idx2], axis=-1), axis=-1) #checking
-            # return np.mean(np.linalg.norm(embedding_new[idx1] - embedding_new[idx2], axis=0)) # correct expection
-
-        from sklearn.neighbors import NearestNeighbors
-
-        nbrs = NearestNeighbors(
-            n_neighbors=min(200, embedding_new.shape[0] - 1),
-            metric=my_distance,
-            n_jobs=args.num_process,
-            algorithm='brute'
-        )
-        nbrs.fit(np.arange(0, embedding_new.shape[0]).reshape(-1, 1))
-
-        dist_matrix = nbrs.kneighbors_graph(
-            np.asarray(list(range(embedding_new.shape[0])), dtype=int)[:, np.newaxis],
-            n_neighbors=min(200, embedding_new.shape[0] - 1), mode='distance',
-        )
+    dist_matrix = kneighbors_graph(
+        embedding_new,
+        n_neighbors=min(200, embedding_new.shape[0] - 1),
+        mode='distance',
+        p=2,
+        n_jobs=args.num_process)
 
     dbscan_results = []
     for eps_value in [0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55]:

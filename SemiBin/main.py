@@ -264,6 +264,18 @@ def parse_args(args):
                        dest='epoches',
                        default=15)
 
+    training_self.add_argument('--quality_report_file_path',
+                               required=False,
+                               type=str,
+                               help='Quality report file path (Default: None).',
+                               default=None)
+
+    training_self.add_argument('--contig_bins_file',
+                               required=False,
+                               type=str,
+                               help='contigs_bins.tsv file path (Default: None).',
+                               default=None)
+
 
 
     for p in [single_easy_bin, multi_easy_bin, generate_cannot_links,
@@ -553,21 +565,6 @@ def parse_args(args):
                        default=None,
                        )
 
-        p.add_argument('-include_std', '--include_std',
-                       required=False,
-                       type=int,
-                       help='Check if standard deviation is included or not',
-                       dest='include_std',
-                       default=0,
-                       )
-        p.add_argument('-checkpoint', '--checkpoint',
-                       required=False,
-                       type=str,
-                       help='Checkpoint model path',
-                       dest='checkpoint',
-                       default="",
-                       )
-
     for p in [generate_cannot_links, generate_sequence_features_single, generate_sequence_features_multi, single_easy_bin, multi_easy_bin]:
         p.add_argument('--ml-threshold',
                        required=False,
@@ -803,28 +800,37 @@ def generate_sequence_features_single(logger, contig_fasta,
     data_split.csv has the features(kmer and abundace) for contigs that are breaked up as must-link pair.
 
     """
+    print(f"\t+ DEBUG:SingleEasyBinning:2.2.1:(main.py): Inside the generate_sequence_features_single() function.")
     import pandas as pd
 
     if bams is None and abundances is None and not only_kmer:
+        raise NotImplementedError(f"+ DEBUG:SingleEasyBinning:No role!")
         sys.stderr.write(
             f"Error: You need to specify input BAM files or abundance files to calculate coverage features.\n")
         sys.exit(1)
 
     if (bams is not None or abundances is not None) and only_kmer:
+        raise NotImplementedError(f"+ DEBUG:SingleEasyBinning:No role!")
         logger.info('We will only calculate k-mer features.')
 
     logger.debug('Start generating kmer features from fasta file.')
+    print(f"\t+ DEBUG:SingleEasyBinning:2.2.2:(main.py): Generating k-mers for whole sequences")
     kmer_whole = generate_kmer_features_from_fasta(
         contig_fasta, binned_length, 4)
+
     if only_kmer:
+        raise NotImplementedError(f"+ DEBUG:SingleEasyBinning:No role!")
         with atomic_write(os.path.join(output, 'data.csv'), overwrite=True) as ofile:
             kmer_whole.to_csv(ofile)
         return
 
+    print(f"\t+ DEBUG:SingleEasyBinning:2.2.3:(main.py): Generates k-mers by splitting contigs.")
     kmer_split = generate_kmer_features_from_fasta(
         contig_fasta, 1000, 4, split=True, split_threshold=must_link_threshold)
 
     if bams:
+        print(f"\t+ DEBUG:SingleEasyBinning:2.2.4:(main.py): Generates coverage features.")
+
         is_combined = len(bams) >= 5
         logger.info('Calculating coverage for every sample.')
 
@@ -862,9 +868,11 @@ def generate_sequence_features_single(logger, contig_fasta,
                         f"Error: Generating coverage file failed\n")
                     sys.exit(1)
 
+        print(f"\t\t+ DEBUG:SingleEasyBinning:2.2.4.1:(main.py): Combining the coverage with data_cov and data_split_cov.")
         data_cov, data_split_cov = combine_cov(output, bams, is_combined)
 
     if abundances:
+        raise NotImplementedError(f"+ DEBUG:SingleEasyBinning:No role!")
         if len(abundances) < 5:
             sys.stderr.write(
                 f"Error: abundances from strobealign-aemb can only be used with at least 5 samples.\n")
@@ -874,15 +882,20 @@ def generate_sequence_features_single(logger, contig_fasta,
         is_combined = True
 
     if is_combined:
+        raise NotImplementedError(f"+ DEBUG:SingleEasyBinning:No role!")
+
         data_split = pd.merge(kmer_split, data_split_cov, how='inner', on=None,
                                   left_index=True, right_index=True, sort=False, copy=True)
     else:
         data_split = kmer_split
 
+    print(f"\t+ DEBUG:SingleEasyBinning:2.2.6:(main.py): Whole k-mers and coverage info are combined.")
     kmer_whole.index = kmer_whole.index.astype(str)
-    data = pd.merge(kmer_whole, data_cov, how='inner', on=None,
-                                  left_index=True, right_index=True, sort=False, copy=True)
+    data = pd.merge(
+        kmer_whole, data_cov, how='inner', on=None, left_index=True, right_index=True, sort=False, copy=True
+    )
 
+    print(f"\t+ DEBUG:SingleEasyBinning:2.2.7:(main.py): Write the data and data_split.csv files.")
     with atomic_write(os.path.join(output, 'data.csv'), overwrite=True) as ofile:
         data.to_csv(ofile)
 
@@ -1080,13 +1093,14 @@ def generate_sequence_features_multi(logger, args):
 
 
 def training(
-        include_std, checkpoint_path, logger, contig_fasta, data, data_split, cannot_link, *, output, device, mode, args
+        logger, contig_fasta, data, data_split, cannot_link, *, output, device, mode, args, quality_report_file_path=None, contig_bins_file=None
 ):
     """
     Training the model
 
     model: [single/several]
     """
+    print(f"+ DEBUG:Training:2.1:(main.py): inside the training function.")
     from .semi_supervised_model import train_semi
     from .self_supervised_model import train_self
     import pandas as pd
@@ -1096,13 +1110,15 @@ def training(
         data_ = pd.read_csv(data[0], index_col=0)
         col_name = data_.columns[-1].split('_')[-1]
         is_combined = col_name != 'var'
-        print(f"\t- I. BEN: We're in training function and mode is 'single'!")
+        print(f"+ DEBUG:Training:2.2:(main.py): Mode: {mode}")
 
     else:
+        raise NotImplementedError(f"+ DEBUG:SingleEasyBinning:No role!")
         logger.info('Start training from multiple samples.')
         is_combined = False
 
     if args.training_type == 'semi':
+        raise NotImplementedError(f"+ DEBUG:SingleEasyBinning:No role!")
         binned_lengths = []
         for fafile in contig_fasta:
             binned_lengths.append(
@@ -1127,17 +1143,17 @@ def training(
             prodigal_output_faa=args.prodigal_output_faa,
             orf_finder=args.orf_finder)
     else:
-        print(f"\t- II. BEN: We're in training function to call the train_self method here!")
+        print(f"+ DEBUG:Training:2.3:(main.py): Training type: {args.training_type}")
         model = train_self(
-            include_std, checkpoint_path, output, logger, data, data_split, is_combined,
-            args.batchsize, args.epoches, device, args.num_process, mode
+            output, logger, data, data_split, is_combined,
+            args.batchsize, args.epoches, device, args.num_process, mode, quality_report_file_path, contig_bins_file
         )
 
-    print(f"\t- V. BEN: We're saving the model.")
+    print(f"+ DEBUG:Training:2.4:(main.py): Saving model.")
     model.save_with_params_to(os.path.join(output, 'model.pt'))
 
 
-def binning_preprocess(data, depth_metabat2, model_path, include_std, environment, device):
+def binning_preprocess(data, depth_metabat2, model_path, environment, device):
     import pandas as pd
     from .semi_supervised_model import model_load
     data = pd.read_csv(data, index_col=0)
@@ -1168,15 +1184,16 @@ def binning_preprocess(data, depth_metabat2, model_path, include_std, environmen
             sys.exit(1)
 
     model = model_load(model_path, device)
-    model.include_std = include_std
 
     return is_combined, n_sample, data, model
 
 def binning_long(logger, data, minfasta, binned_length, contig_dict,
-        model_path, include_std, output, device, environment, *, args):
+        model_path, output, device, environment, *, args):
     from .long_read_cluster import cluster_long_read
+
+    # raise ValueError(f"+ DEBUG:Binning:3:(main.py): To be updated")
     logger.info('Start binning.')
-    is_combined, n_sample, data, model = binning_preprocess(data, getattr(args, 'depth_metabat2', None), model_path, include_std, environment, device)
+    is_combined, n_sample, data, model = binning_preprocess(data, getattr(args, 'depth_metabat2', None), model_path, environment, device)
     cluster_long_read(logger,
                       model,
                       data,
@@ -1219,11 +1236,13 @@ def binning_short(logger, data, minfasta,
 
 
 def single_easy_binning(
-        include_std, checkpoint_path, logger, args, binned_length, must_link_threshold, contig_dict, device
+        logger, args, binned_length, must_link_threshold, contig_dict, device
 ):
     """
     contain `generate_cannot_links`, `generate_sequence_features_single`, `train`, `bin` in one command for single-sample and co-assembly binning
     """
+    print(f"+ DEBUG:SingleEasyBinning:2.1:(main.py): Inside the singe_easy_binning() function")
+
     logger.info('Generating training data...')
     if args.depth_metabat2 is None and args.bams is None and args.abundances is None:
         sys.stderr.write(
@@ -1238,6 +1257,7 @@ def single_easy_binning(
             f"Error: You need to use our provided model if you provide depth file from Metabat2.\n")
         sys.exit(1)
 
+    print(f"+ DEBUG:SingleEasyBinning:2.2:(main.py): Generates sequence features.")
     generate_sequence_features_single(
         logger,
         args.contig_fasta,
@@ -1251,10 +1271,14 @@ def single_easy_binning(
 
     data_path = os.path.join(args.output, 'data.csv')
     if not args.depth_metabat2:
+        print(f"+ DEBUG:SingleEasyBinning:2.3:(main.py): data_split_path defined.")
         data_split_path = os.path.join(args.output, 'data_split.csv')
 
     if args.environment is None:
+        print(f"+ DEBUG:SingleEasyBinning:2.4:(main.py): Here we will train the model.")
+
         if args.training_type == 'semi':
+            raise NotImplementedError(f"+ DEBUG:SingleEasyBinning:No role!")
             logger.info('Running mmseqs and generate cannot-link file.')
             predict_taxonomy(
                 logger,
@@ -1270,13 +1294,12 @@ def single_easy_binning(
             fasta = [args.contig_fasta]
             cannot_link = [os.path.join(args.output, 'cannot', 'cannot.txt')]
 
-
         else:
             fasta = None
             cannot_link = None
 
         training(
-            include_std, checkpoint_path, logger, fasta, [data_path], [data_split_path],
+            logger, fasta, [data_path], [data_split_path],
             cannot_link=cannot_link, output=args.output,  device=device, mode='single', args=args
         )
 
@@ -1296,7 +1319,9 @@ def single_easy_binning(
         'environment': args.environment,
     }
 
+    print(f"+ DEBUG:SingleEasyBinning:2.5:(main.py): Call binning_long function.")
     if args.sequencing_type == 'short_read':
+        raise NotImplementedError(f"+ DEBUG:SingleEasyBinning:No role!")
         binning_short(**binning_kwargs)
     else:
         binning_long(**binning_kwargs)
@@ -1506,6 +1531,8 @@ def main2(raw_args=None, is_semibin2=True):
             args.bams = maybe_crams2bams(args.bams, args.contig_fasta, args.num_process, tdir)
 
         if args.cmd in ['generate_cannot_links', 'generate_sequence_features_single', 'bin','single_easy_bin', 'bin_long']:
+            print(f"+ DEBUG:Binning:1:(main.py): Temp folder generation.")
+
             c_min_len, must_link_threshold, contig_dict = load_fasta(args.contig_fasta, args.ratio)
             if args.min_len is None:
                 binned_length = c_min_len
@@ -1572,13 +1599,9 @@ def main2(raw_args=None, is_semibin2=True):
 
         elif args.cmd == 'train_self':
 
-            print(f"\t- BEN: Train Self")
+            print(f"+ DEBUG:Training:1:(main.py): training() function call with data and data_split paths.")
 
-            include_std = args.include_std
-            checkpoint_path = None if args.checkpoint == "" else args.checkpoint
-            print(f"\t Checkpoint file: {checkpoint_path}")
             training(
-                include_std, checkpoint_path,
                 logger,
                 contig_fasta=None,
                 data=args.data,
@@ -1587,7 +1610,10 @@ def main2(raw_args=None, is_semibin2=True):
                 output=args.output,
                 device=device,
                 mode=args.mode,
-                args=args
+                args=args,
+                quality_report_file_path=args.quality_report_file_path,
+                contig_bins_file=args.contig_bins_file
+
             )
 
 
@@ -1598,15 +1624,14 @@ def main2(raw_args=None, is_semibin2=True):
                     device=device, args=args)
 
         elif args.cmd == 'bin_long':
-            print(f"\t- BEN: Binning long reads")
+            print(f"+ DEBUG:Binning:2:(main.py): binning_long function call.")
             binning_long(logger, args.data, args.minfasta_kb * 1000,
-                    binned_length, environment=args.environment, include_std=args.include_std,
+                    binned_length, environment=args.environment,
                     contig_dict=contig_dict, model_path=args.model_path,
                     output=args.output, device=device, args=args)
 
         elif args.cmd == 'single_easy_bin':
-
-            print(f"\t- BEN: Single Easy Binning")
+            print(f"+ DEBUG:SingleEasyBinning:1:(main.py): To be updated")
 
             check_install(False, args.orf_finder, allow_missing_mmseqs2=(args.environment is not None or args.training_type == 'self'))
             if args.environment is not None:
@@ -1616,10 +1641,8 @@ def main2(raw_args=None, is_semibin2=True):
                             f"Error: provided pretrained model only used in single-sample binning!\n")
                         sys.exit(1)
 
-            include_std = args.include_std
-            checkpoint_path = None if args.checkpoint == "" else args.checkpoint
             single_easy_binning(
-                include_std, checkpoint_path, logger, args, binned_length, must_link_threshold, contig_dict, device
+                logger, args, binned_length, must_link_threshold, contig_dict, device
             )
 
         elif args.cmd == 'multi_easy_bin':

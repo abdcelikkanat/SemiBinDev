@@ -1,5 +1,7 @@
 import os
 
+from sympy import expand
+
 # Config
 configfile: "config.yaml"
 
@@ -18,8 +20,9 @@ EPOCHS=[f"{epoch}" for epoch in range(5, config['epochs_num'], 5)]
 
 rule all:
     input:
-        expand(directory(os.path.join(OUTPUT_DIR,"{sample}","SemiBin2", "bins")), samples=SAMPLES),
-        expand(directory(os.path.join(OUTPUT_DIR,"{sample}","SemiBin2", "checkm2")), samples=SAMPLES),
+        expand(directory(os.path.join(OUTPUT_DIR,"{sample}","SemiBin2", "bins")), sample=SAMPLES),
+        expand(directory(os.path.join(OUTPUT_DIR,"{sample}","SemiBin2", "checkm2")), sample=SAMPLES),
+        expand(directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins")), sample=SAMPLES),
         # expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "checkm2", "quality_report.tsv"), sample=SAMPLES),
         # expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "epoch_{epoch}", "checkm2", "quality_report.tsv"), sample=SAMPLES, epoch=EPOCHS),
 
@@ -109,43 +112,37 @@ else:
                 --force
             """
 
-
-# rule semibin_v220:
-#     conda: "semibin2v220"
-#     input:
-#         i = lambda wildcards: os.path.join(INPUT_DIR, config['samples'][wildcards.sample]['eukfilt']),
-#         b = lambda wildcards: os.path.join(INPUT_DIR, config['samples'][wildcards.sample]['bam']),
-#     output:
-#         dir = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "bins")),
-#         output_bins = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "bins", "output_bins")),
-#         data = os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "bins", "data.csv"),
-#         contig_bins = os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "bins", "contig_bins.tsv"),
-#     params:
-#         min_contig_len = config["filtering"]["min_contig_len"],
-#         sequencing_type = "long_read",
-#         epochs_num = config["epochs_num"],
-#         semibin2_path = os.path.join(ENV_DIR, "semibinrefining", "bin", "SemiBin2"),
-#         container_path = os.path.join(CONTAINER_PATH, ),
-#     resources:
-#         mem="100G",
-#         threads = 40,
-#         walltime="1-00:00:00",
-#         nodetype=config["partitions"]["cpu"],
-#     shell:
-#         """
-#         which {params.semibin2_path} & \
-#         apptainer exec --bind /projects:/projects {params.container_path} \
-#         {params.semibin2_path} single_easy_bin \
-#             --input-fasta {input.i} \
-#             -b {input.b} \
-#             -o {output.dir} \
-#             -m {params.min_contig_len} \
-#             --sequencing-type {params.sequencing_type} \
-#             -p {resources.threads} \
-#             --epochs {params.epochs_num} \
-#             --include_std 0 \
-#             --checkpoint ""
-#         """
+rule refining1_train:
+    conda: "semibinrefining"
+    wildcard_constraints:
+        epoch = r"[0-9]+"
+    input:
+        data = os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "bins", "data.csv"),
+        data_split = os.path.join(OUTPUT_DIR,"{sample}","SemiBin2","bins","data_split.csv"),
+        contig_bins = os.path.join(OUTPUT_DIR,"{sample}","SemiBin2","bins","contig_bins.csv"),
+        quality_bins = os.path.join(OUTPUT_DIR,"{sample}","SemiBin2","checkm2","quality_report.tsv"),
+    output:
+        dir = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins")),
+    params:
+        semibin_path = os.path.join(ENV_DIR, "semibiniclr", "bin", "SemiBin2"),
+        container_path = os.path.join(CONTAINER_PATH, ),
+    resources:
+        mem="32G",
+        threads = 10,
+        walltime="1-00:00:00",
+        nodetype=config["partitions"]["cpu"],
+    shell:
+        """
+        which {params.semibin_path} & \
+        apptainer exec --bind /projects:/projects {params.container_path} {params.semibin2_path} train_self \
+            --data {input.data} \
+            --data-split {input.data_split} \
+            --contig_bins_file {input.contig_bins} \
+            --quality_report_file {input.quality_bins} \ 
+            --threads {resources.threads} \
+            --engine cpu \
+            --output {output.dir} 
+        """
 
 
 # rule semibin_binning:

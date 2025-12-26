@@ -58,3 +58,12 @@ pip install .; SemiBin2 bin_long \
          --output outputs/test3 \ 
          -p 16 --include_std 1
 ```
+
+Run everything
+```bash
+pip install . > /dev/null; SemiBin2 single_easy_bin --input-fasta ../datasets/anaerobic_digester/assembly.fasta -b ../datasets/anaerobic_digester/1_cov.bam -o ./sil/ -m 3000 --sequencing-type long_read -p 8 --epochs 2
+```
+Run only training part
+```bash
+pip install . > /dev/null; SemiBin2 train_self --data ../datasets/fecal_deep/data.csv --data-split ../datasets/fecal_deep/data_split.csv --threads 1 --engine cpu --output sil --quality_report_file ../datasets/fecal_deep/quality_report.tsv --contig_bins_file ../datasets/fecal_deep/contig_bins.tsv
+```
