@@ -1,7 +1,5 @@
 import os
 
-from sympy import expand
-
 # Config
 configfile: "config.yaml"
 
@@ -20,127 +18,123 @@ EPOCHS=[f"{epoch}" for epoch in range(5, config['epochs_num'], 5)]
 
 rule all:
     input:
-        expand(os.path.join(OUTPUT_DIR,"{sample}","SemiBin2", "bins"), sample=SAMPLES),
-        expand(os.path.join(OUTPUT_DIR,"{sample}","SemiBin2", "checkm2"), sample=SAMPLES),
+        expand(os.path.join(OUTPUT_DIR,"{sample}","SemiBin2", "bins", "contig_bins.tsv"), sample=SAMPLES),
+        expand(os.path.join(OUTPUT_DIR,"{sample}","SemiBin2", "checkm2", "quality_report.tsv"), sample=SAMPLES),
         expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins"), sample=SAMPLES),
         # expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "checkm2", "quality_report.tsv"), sample=SAMPLES),
         # expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "epoch_{epoch}", "checkm2", "quality_report.tsv"), sample=SAMPLES, epoch=EPOCHS),
 
-if all(not os.path.exists(f"{OUTPUT_DIR}/{sample}/SemiBin2") for sample in SAMPLES):
+rule semibin_v220:
+    conda: "semibin2v220"
+    input:
+        i = lambda wc: os.path.join(INPUT_DIR, config['samples'][wc.sample]['eukfilt']),
+        b = lambda wc: os.path.join(INPUT_DIR, config['samples'][wc.sample]['bam']),
+    output:
+        dir = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "bins")),
+        #output_bins = directory(os.path.join(OUTPUT_DIR, "{wildcards.sample}", "SemiBin2", "bins", "output_bins")),
+        #data = os.path.join(OUTPUT_DIR, "{wildcards.sample}", "SemiBin2", "bins", "data.csv"),
+        contig_bins = os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "bins", "contig_bins.tsv"),
+    params:
+        min_contig_len = config["filtering"]["min_contig_len"],
+        sequencing_type = "long_read",
+        epochs_num = config["epochs_num"],
+        semibin2_path = os.path.join(ENV_DIR, "semibin2v220", "bin", "SemiBin2"),
+        container_path = os.path.join(CONTAINER_PATH, ),
+    resources:
+        mem="100G",
+        threads = 40,
+        walltime="1-00:00:00",
+        nodetype=config["partitions"]["cpu"],
+    shell:
+        r"""
+        echo {output.dir}
 
-    rule symbolic_link:
-        input:
-            folder = lambda wildcards: os.path.join(BIG_PROJECT_OUTPUT_DIR, wildcards.sample),
-        output:
-            dir = directory(os.path.join(OUTPUT_DIR, "{sample}")),
-            bins = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "bins")),
-            checkm2 = directory(os.path.join(OUTPUT_DIR,"{sample}","SemiBin2","checkm2")),
-        resources:
-            mem="32G",
-            threads=4,
-            walltime="1-00:00:00",
-            nodetype=config["partitions"]["cpu"],
-        shell:
-            """
-            echo {input.folder}/SemiBin2 + {output.dir} & \
-            ln -s {input.folder}/SemiBin2/* {output.dir}/SemiBin2/
-            """
+        if [[ -d {BIG_PROJECT_OUTPUT_DIR}/{wildcards.sample} ]]; then
 
-else:
+            mkdir -p {output.dir}
+            ln -s {BIG_PROJECT_OUTPUT_DIR}/{wildcards.sample}/SemiBin2/bins/* {output.dir}/
 
-    rule semibin_v220:
-        conda: "semibin2v220"
-        input:
-            i = lambda wildcards: os.path.join(INPUT_DIR, config['samples'][wildcards.sample]['eukfilt']),
-            b = lambda wildcards: os.path.join(INPUT_DIR, config['samples'][wildcards.sample]['bam']),
-        output:
-            dir = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "bins")),
-            output_bins = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "bins", "output_bins")),
-            data = os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "bins", "data.csv"),
-            contig_bins = os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "bins", "contig_bins.tsv"),
-        params:
-            min_contig_len = config["filtering"]["min_contig_len"],
-            sequencing_type = "long_read",
-            epochs_num = config["epochs_num"],
-            semibin2_path = os.path.join(ENV_DIR, "semibin2v220", "bin", "SemiBin2"),
-            container_path = os.path.join(CONTAINER_PATH, ),
-        resources:
-            mem="100G",
-            threads = 40,
-            walltime="1-00:00:00",
-            nodetype=config["partitions"]["cpu"],
-        shell:
-            """
-            if [-d {BIG_PROJECT_OUTPUT_DIR}/{sample} ]; then
-                ln -s {BIG_PROJECT_OUTPUT_DIR}/{sample}/SemiBin2 {OUTPUT_DIR}/{sample}/SemiBin2
-            else
-                which {params.semibin2_path} & \
-                apptainer exec --bind /projects:/projects {params.container_path} \
-                {params.semibin2_path} single_easy_bin \
-                    --input-fasta {input.i} \
-                    -b {input.b} \
-                    -o {output.dir} \
-                    -m {params.min_contig_len} \
-                    --sequencing-type {params.sequencing_type} \
-                    -p {resources.threads}
-            fi
-            """
+        else
 
-    rule checkm2_semibin2:
-        conda:
-           "checkm2_v1.1.0",
-        input:
-            output_bins = os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "bins", "output_bins"),
-        output:
-            dir = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "checkm2")),
-            quality_file = os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "checkm2", "quality_report.tsv"),
-        params:
-            ext = ".fa",
-            db = config["databases"]["checkm2"],
-            checkm2 = config["paths"]["checkm2"],
-        resources:
-            mem = "64G",
-            threads = 16,
-            walltime = "1-00:00:00",
-            nodetype = config["partitions"]["cpu"],
-        shell:
-            """
-            CHECKM2DB={params.db}
+            echo {input.i}
+
+        fi
+        """
+        #else
+        #    which {params.semibin2_path} & \
+        #    apptainer exec --bind /projects:/projects {params.container_path} \
+        #        {params.semibin2_path} single_easy_bin \
+        #        --input-fasta {input.i} \
+        #        -b {input.b} \
+        #        -o {output.dir} \
+        #        -m {params.min_contig_len} \
+        #        --sequencing-type {params.sequencing_type} \
+        #        -p {resources.threads}
+        #fi
+        
+
+rule checkm2_semibin2:
+    conda: 
+       "checkm2_v1.1.0",
+    input:
+        output_bins = os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "bins", "output_bins"),
+    output:
+        dir = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "checkm2")),
+        quality_file = os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "checkm2", "quality_report.tsv"),
+    params:
+        ext = ".fa",
+        db = config["databases"]["checkm2"],
+        checkm2 = config["paths"]["checkm2"],
+    resources:
+        mem = "64G",
+        threads = 16,
+        walltime = "1-00:00:00",
+        nodetype = config["partitions"]["cpu"],
+    shell:
+        r"""
+        if [[ -d {BIG_PROJECT_OUTPUT_DIR}/{wildcards.sample} ]]; then
+            echo {output.quality_file}
+            mkdir -p {output.dir}
+            ln -s {BIG_PROJECT_OUTPUT_DIR}/{wildcards.sample}/SemiBin2/checkm2/* {OUTPUT_DIR}/{wildcards.sample}/SemiBin2/checkm2/
+
+        else
+
+            CHECKM2DB={params.db};
             checkm2 predict \
                 -i {input.output_bins}/* \
                 -o {output.dir} \
                 -x {params.ext} \
                 -t {resources.threads} \
                 --force
-            """
+
+        fi        
+        """
 
 rule refining1_train:
     conda: "semibinrefining"
-    wildcard_constraints:
-        epoch = r"[0-9]+"
     input:
         data = os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "bins", "data.csv"),
         data_split = os.path.join(OUTPUT_DIR,"{sample}","SemiBin2","bins","data_split.csv"),
-        contig_bins = os.path.join(OUTPUT_DIR,"{sample}","SemiBin2","bins","contig_bins.csv"),
+        contig_bins = os.path.join(OUTPUT_DIR,"{sample}","SemiBin2","bins","contig_bins.tsv"),
         quality_bins = os.path.join(OUTPUT_DIR,"{sample}","SemiBin2","checkm2","quality_report.tsv"),
     output:
         dir = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins")),
     params:
-        semibin_path = os.path.join(ENV_DIR, "semibiniclr", "bin", "SemiBin2"),
+        semibin_path = os.path.join(ENV_DIR, "semibinrefining", "bin", "SemiBin2"),
         container_path = os.path.join(CONTAINER_PATH, ),
     resources:
-        mem="32G",
+        mem="96G",
         threads = 10,
         walltime="1-00:00:00",
         nodetype=config["partitions"]["cpu"],
     shell:
-        """
-        which {params.semibin_path} & \
-        apptainer exec --bind /projects:/projects {params.container_path} {params.semibin2_path} train_self \
+        r"""
+        which {params.semibin_path};
+        apptainer exec --bind /projects:/projects {params.container_path} {params.semibin_path} train_self \
             --data {input.data} \
             --data-split {input.data_split} \
             --contig_bins_file {input.contig_bins} \
-            --quality_report_file {input.quality_bins} \ 
+            --quality_report_file {input.quality_bins} \
             --threads {resources.threads} \
             --engine cpu \
             --output {output.dir} 

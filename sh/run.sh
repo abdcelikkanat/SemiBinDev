@@ -25,7 +25,7 @@ SNAKEMAKE=/home/cs.aau.dk/zs74qz/.conda/envs/snakemake/bin/snakemake
 
 # Reinstall the Semibin2
 conda activate ${CONDA_ENV_DIR}/${ENV_NAME}
-pip install ${BASE_DIR}
+pip install ${BASE_DIR} > /dev/null 
 
 ${SNAKEMAKE} -s ${BASE_DIR}/sh/Snakefile \
     --use-conda --conda-prefix ~/.conda/envs/ --jobs 100 --latency-wait 120 \
@@ -37,6 +37,6 @@ ${SNAKEMAKE} -s ${BASE_DIR}/sh/Snakefile \
     --mem={resources.mem} \
     --cpus-per-task={resources.threads} \
     --time=2-00:00:00 \
-    --mail-type=FAIL \
+    --mail-type=NONE \
     --mail-user=abce@cs.aau.dk"
 

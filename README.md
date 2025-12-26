@@ -67,3 +67,8 @@ Run only training part
 ```bash
 pip install . > /dev/null; SemiBin2 train_self --data ../datasets/fecal_deep/data.csv --data-split ../datasets/fecal_deep/data_split.csv --threads 1 --engine cpu --output sil --quality_report_file ../datasets/fecal_deep/quality_report.tsv --contig_bins_file ../datasets/fecal_deep/contig_bins.tsv
 ```
+
+Snakemake dry-run command
+```bash
+/home/cs.aau.dk/zs74qz/.conda/envs/snakemake/bin/snakemake -s Snakefile --jobs 1 --dry-run
+```
