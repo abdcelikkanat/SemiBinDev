@@ -180,7 +180,7 @@ def train_self(
                 ########################################################################################################
                 # Construct positive pairs
                 pos_pairs = []
-                pos_per_class = 3
+                pos_per_class = 10
                 for bin in bin2quality:
                     if bin2quality[bin] == 'HQ':
                         sampled_indices = np.random.randint(low=0, high=len(bin2contigs[bin]),

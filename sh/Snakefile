@@ -4,6 +4,7 @@ import os
 configfile: "config.yaml"
 
 # Get the input and output directories
+MODELNAME = "SemiBinRefining2"
 INPUT_DIR = config["paths"]["input_dir"]
 OUTPUT_DIR = config["paths"]["output_dir"]
 ENV_DIR = config["paths"]["venv_dir"]
@@ -20,8 +21,8 @@ rule all:
     input:
         expand(os.path.join(OUTPUT_DIR,"{sample}","SemiBin2", "bins", "contig_bins.tsv"), sample=SAMPLES),
         expand(os.path.join(OUTPUT_DIR,"{sample}","SemiBin2", "checkm2", "quality_report.tsv"), sample=SAMPLES),
-        #expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinRefining1", "bins"), sample=SAMPLES),
-        expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinRefining1", "checkm2", "quality_report.tsv"), sample=SAMPLES),
+        #expand(os.path.join(OUTPUT_DIR, "{sample}", MODELNAME, "bins"), sample=SAMPLES),
+        expand(os.path.join(OUTPUT_DIR, "{sample}", MODELNAME, "checkm2", "quality_report.tsv"), sample=SAMPLES),
         # expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "epoch_{epoch}", "checkm2", "quality_report.tsv"), sample=SAMPLES, epoch=EPOCHS),
 
 rule semibin_v220:
@@ -118,7 +119,7 @@ rule train_refining1:
         contig_bins = os.path.join(OUTPUT_DIR,"{sample}","SemiBin2","bins","contig_bins.tsv"),
         quality_bins = os.path.join(OUTPUT_DIR,"{sample}","SemiBin2","checkm2","quality_report.tsv"),
     output:
-        dir = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinRefining1", "bins")),
+        dir = directory(os.path.join(OUTPUT_DIR, "{sample}", MODELNAME, "bins")),
     params:
         semibin_path = os.path.join(ENV_DIR, "semibinrefining", "bin", "SemiBin2"),
         container_path = os.path.join(CONTAINER_PATH, ),
@@ -146,9 +147,9 @@ rule binning_refining1:
     input:
         i = lambda wildcards: os.path.join(INPUT_DIR, config['samples'][wildcards.sample]['eukfilt']),
         data = os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "bins", "data.csv"),
-        model = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinRefining1", "bins", "model.pt"),
+        model = os.path.join(OUTPUT_DIR, "{sample}", MODELNAME, "bins", "model.pt"),
     output:
-        dir = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinRefining1", "bins")),
+        dir = directory(os.path.join(OUTPUT_DIR, "{sample}", MODELNAME, "bins")),
     params:
         semibin_path = os.path.join(ENV_DIR, "semibinrefining", "bin", "SemiBin2"),
         container_path = os.path.join(CONTAINER_PATH, ),
@@ -172,10 +173,10 @@ rule checkm2_refining1:
     conda:
        "checkm2_v1.1.0",
     input:
-        output_bins = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinRefining1", "bins", "output_bins"),
+        output_bins = os.path.join(OUTPUT_DIR, "{sample}", MODELNAME, "bins", "output_bins"),
     output:
-        dir = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinRefining1", "checkm2")),
-        quality_file = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinRefining1", "checkm2", "quality_report.tsv"),
+        dir = directory(os.path.join(OUTPUT_DIR, "{sample}", MODELNAME, "checkm2")),
+        quality_file = os.path.join(OUTPUT_DIR, "{sample}", MODELNAME, "checkm2", "quality_report.tsv"),
     params:
         ext = ".fa",
         db = config["databases"]["checkm2"],
