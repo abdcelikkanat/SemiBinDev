@@ -1,7 +1,5 @@
 import os
 
-from sympy import expand
-
 # Config
 configfile: "config.yaml"
 
@@ -11,7 +9,7 @@ OUTPUT_DIR = config["paths"]["output_dir"]
 ENV_DIR = config["paths"]["venv_dir"]
 TEMP_DIR = config["paths"]["temp_dir"]
 CONTAINER_PATH = config["paths"]["container_path"]
-BIG_PROJECT_OUTPUT_DIR = os.path.realpath("~/outputs/nanomotif_v1.1.0")
+BIG_PROJECT_OUTPUT_DIR = "/projects/dark_science/methylation_binning/article/outputs/nanomotif_v1.1.0" #os.path.realpath("~/outputs/nanomotif_v1.1.0")
 
 # Input samples
 SAMPLES=[sample for sample in config['samples']]
@@ -20,18 +18,18 @@ EPOCHS=[f"{epoch}" for epoch in range(5, config['epochs_num'], 5)]
 
 rule all:
     input:
-        expand(directory(os.path.join(OUTPUT_DIR,"{sample}","SemiBin2", "bins")), sample=SAMPLES),
-        expand(directory(os.path.join(OUTPUT_DIR,"{sample}","SemiBin2", "checkm2")), sample=SAMPLES),
-        expand(directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins")), sample=SAMPLES),
+        expand(os.path.join(OUTPUT_DIR,"{sample}","SemiBin2", "bins"), sample=SAMPLES),
+        expand(os.path.join(OUTPUT_DIR,"{sample}","SemiBin2", "checkm2"), sample=SAMPLES),
         # expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "checkm2", "quality_report.tsv"), sample=SAMPLES),
         # expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "epoch_{epoch}", "checkm2", "quality_report.tsv"), sample=SAMPLES, epoch=EPOCHS),
 
-if all(not os.path.exists(f"{BIG_PROJECT_OUTPUT_DIR}/{sample}") for sample in SAMPLES):
+if all(not os.path.exists(f"{OUTPUT_DIR}/{sample}/SemiBin2") for sample in SAMPLES):
 
     rule symbolic_link:
         input:
-            folder = lambda wildcards: os.path.join(BIG_PROJECT_OUTPUT_DIR, wildcards.sample)
+            folder = lambda wildcards: os.path.join(BIG_PROJECT_OUTPUT_DIR, wildcards.sample),
         output:
+            dir = directory(os.path.join(OUTPUT_DIR, "{sample}")),
             bins = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "bins")),
             checkm2 = directory(os.path.join(OUTPUT_DIR,"{sample}","SemiBin2","checkm2")),
         resources:
@@ -41,7 +39,8 @@ if all(not os.path.exists(f"{BIG_PROJECT_OUTPUT_DIR}/{sample}") for sample in SA
             nodetype=config["partitions"]["cpu"],
         shell:
             """
-            ln - s {BIG_PROJECT_OUTPUT_DIR}/{sample}/SemiBin2 {OUTPUT_DIR}/{sample}/SemiBin2
+            echo {input.folder}/SemiBin2 + {output.dir} & \
+            ln -s {input.folder}/SemiBin2/* {output.dir}/SemiBin2/
             """
 
 else:
@@ -73,7 +72,7 @@ else:
                 ln -s {BIG_PROJECT_OUTPUT_DIR}/{sample}/SemiBin2 {OUTPUT_DIR}/{sample}/SemiBin2
             else
                 which {params.semibin2_path} & \
-                apptainer exec --bind /projects:/projects {params.container_path} \ 
+                apptainer exec --bind /projects:/projects {params.container_path} \
                 {params.semibin2_path} single_easy_bin \
                     --input-fasta {input.i} \
                     -b {input.b} \
