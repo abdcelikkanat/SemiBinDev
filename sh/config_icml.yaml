@@ -21,7 +21,8 @@ filtering:
    min_contig_len: 3000
 
 # Define the number of epochs
-epochs_num: 5
+mean_epochs_num: 5
+var_epochs_num: 5
 
 # Define sample list
 samples:

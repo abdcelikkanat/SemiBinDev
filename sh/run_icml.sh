@@ -27,7 +27,7 @@ SNAKEMAKE=/home/cs.aau.dk/zs74qz/.conda/envs/snakemake/bin/snakemake
 conda activate ${CONDA_ENV_DIR}/semibiniclr
 pip install ${BASE_DIR} > /dev/null
 
-${SNAKEMAKE} -s ${BASE_DIR}/sh/Snakefile_icml \
+${SNAKEMAKE} -s ${BASE_DIR}/sh/Snakefile_icml.yaml \
     --use-conda --conda-prefix ~/.conda/envs/ --jobs 100 --latency-wait 120 \
     --cluster "sbatch \
     --job-name={rule} \
