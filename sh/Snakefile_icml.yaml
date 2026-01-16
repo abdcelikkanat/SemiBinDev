@@ -124,7 +124,7 @@ rule mean_binning:
     input:
         i = lambda wildcards: os.path.join(INPUT_DIR, config['samples'][wildcards.sample]['eukfilt']),
         data = os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "bins", "data.csv"),
-        model = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_models", "models.pt"),
+        model = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_models", "model.pt"),
     output:
         dir = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_bins")),
         output_bins = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_bins", "output_bins")),
