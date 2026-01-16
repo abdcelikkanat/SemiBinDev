@@ -17,7 +17,11 @@ EPOCHS=[f"{epoch}" for epoch in range(5, config['epochs_num'], 5)]
 
 rule all:
     input:
-        checkpoint_path = expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins", f"checkpoint_{epoch}.pt"), epoch=EPOCS),
+        mean_model_path = expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins", "mean_model.pt"),  sample=SAMPLES),
+#        mean_model = expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins", "contig_bins.tsv"),  sample=SAMPLES),
+#        contig_bins = expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins", "contig_bins.tsv"),  sample=SAMPLES),
+#        dir = directory(expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins"),  sample=SAMPLES)),
+#        checkpoint_path = expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins", "checkpoint_{epoch}.pt"), epoch=EPOCHS, sample=SAMPLES),
 #        expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "checkm2", "quality_report.tsv"), sample=SAMPLES),
 #        expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "epoch_{epoch}", "checkm2", "quality_report.tsv"), sample=SAMPLES, epoch=EPOCHS),
 
@@ -27,15 +31,14 @@ rule semibin_train_mean:
         data = os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "bins", "data.csv"),
         data_split = os.path.join(OUTPUT_DIR,"{sample}","SemiBin2","bins","data_split.csv"),
     output:
-        dir = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins")),
-        contig_bins = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins", "contig_bins.tsv"),
-        checkpoint_path = expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins", f"checkpoint_{epoch}.pt"), epoch=EPOCS),
+        mean_model_path = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins", "model.pt"),
     params:
         min_contig_len = config["filtering"]["min_contig_len"],
         sequencing_type = "long_read",
         epochs_num = config["epochs_num"],
         semibin2_path = os.path.join(ENV_DIR, "semibiniclr", "bin", "SemiBin2"),
         container_path = os.path.join(CONTAINER_PATH, ),
+        output_dir = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins")),
     resources:
         mem="100G",
         threads = 40,
@@ -44,16 +47,40 @@ rule semibin_train_mean:
     shell:
         """
         which {params.semibin2_path} & \
-        apptainer exec --bind /projects:/projects {params.container_path} {params.semibin2_path} single_easy_bin \
+        apptainer exec --bind /projects:/projects {params.container_path} {params.semibin2_path} train_self \
             --data {input.data} \
             --data-split {input.data_split} \
             --threads {resources.threads} \
             --engine cpu \
-            --output {output.dir} \
+            --output {params.output_dir} \
             --epochs {params.epochs_num} \
             --include_std 0
         """
 
+rule mean_model_rename:
+    input:
+        mean_model_path = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins", "model.pt"),
+        mean_checkpoints = expand( os.path.join( OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins", "checkpoint={epoch}.pt" ), epoch=EPOCHS ),
+        dir = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins")
+    output:
+        mean_model_path = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins", "mean_model.pt"),
+        mean_checkpoints = expand( os.path.join( OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins", "mean_checkpoint\={epoch}.pt" ), epoch=EPOCHS ),
+    resources:
+        mem="10G",
+        threads = 4,
+        walltime="1-00:00:00",
+        nodetype=config["partitions"]["cpu"],
+    shell:
+        """
+        for ckpt in {input.dir}/checkpoint\=*; do
+            filename=$(basename $ckpt);
+            mv $ckpt {input.dir}/mean_$filename ;
+        done
+        mv {input.mean_model_path} {output.mean_model_path};
+        """
+#        for f in checkpoint_*.pt; do
+#            mv "$f" "mean_$f"
+#        done
 
 
 
