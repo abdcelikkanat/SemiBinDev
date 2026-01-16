@@ -19,6 +19,7 @@ VAR_EPOCHS=[f"{epoch}" for epoch in range(5, config['var_epochs_num'], 5)]
 rule all:
     input:
         var_model_path = expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "var_models", "model.pt"), sample=SAMPLES),
+        output_bins = expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_bins", "output_bins"), sample=SAMPLES),
 #        mean_model_path = expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins", "mean_model.pt"),  sample=SAMPLES),
 #        mean_model = expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins", "contig_bins.tsv"),  sample=SAMPLES),
 #        contig_bins = expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins", "contig_bins.tsv"),  sample=SAMPLES),
@@ -116,35 +117,35 @@ rule semibin_train_var:
             --checkpoint {input.checkpoint_path}
         """
 
-#rule semibin_binning_mean:
-#    conda: "semibiniclr"
-#    wildcard_constraints:
-#        epoch = r"[0-9]+"
-#    input:
-#        i = lambda wildcards: os.path.join(INPUT_DIR, config['samples'][wildcards.sample]['eukfilt']),
-#        data = os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "bins", "data.csv"),
-#        model = expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins", "checkpoint_{epoch}.pt"), epoch=EPOCHS),
-#    output:
-#        dir = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "epoch_{epoch}", "bins")),
-#        output_bins = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "epoch_{epoch}", "bins", "output_bins")),
-#    params:
-#        semibin2_path = os.path.join(ENV_DIR, "semibiniclr", "bin", "SemiBin2"),
-#        container_path = os.path.join(CONTAINER_PATH, ),
-#    resources:
-#        mem="32G",
-#        threads = 10,
-#        walltime="1-00:00:00",
-#        nodetype=config["partitions"]["cpu"],
-#    shell:
-#        """
-#        which {params.semibin2_path} & \
-#        apptainer exec --bind /projects:/projects {params.container_path} {params.semibin2_path} bin_long \
-#            --input-fasta {input.i} \
-#            --data {input.data} \
-#            --model {input.model} \
-#            --output {output.dir} \
-#            -p {resources.threads}
-#        """
+rule mean_binning:
+    conda: "semibiniclr"
+    wildcard_constraints:
+        epoch = r"[0-9]+"
+    input:
+        i = lambda wildcards: os.path.join(INPUT_DIR, config['samples'][wildcards.sample]['eukfilt']),
+        data = os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "bins", "data.csv"),
+        model = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_models", "models.pt"),
+    output:
+        dir = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_bins")),
+        output_bins = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_bins", "output_bins")),
+    params:
+        semibin2_path = os.path.join(ENV_DIR, "semibiniclr", "bin", "SemiBin2"),
+        container_path = os.path.join(CONTAINER_PATH, ),
+    resources:
+        mem="32G",
+        threads = 10,
+        walltime="1-00:00:00",
+        nodetype=config["partitions"]["cpu"],
+    shell:
+        """
+        which {params.semibin2_path} & \
+        apptainer exec --bind /projects:/projects {params.container_path} {params.semibin2_path} bin_long \
+            --input-fasta {input.i} \
+            --data {input.data} \
+            --model {input.model} \
+            --output {output.dir} \
+            -p {resources.threads}
+        """
 #
 #
 #rule checkm2_semibin2_main:
