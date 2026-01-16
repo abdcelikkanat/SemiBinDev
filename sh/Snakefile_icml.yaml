@@ -57,6 +57,8 @@ rule semibin_train_mean:
             --engine cpu \
             --output {params.output_dir} \
             --epochs {params.epochs_num} \
+            -m {params.min_contig_len} \
+            --sequencing-type {params.sequencing_type} \
             --include_std 0
         """
 
@@ -113,14 +115,14 @@ rule semibin_train_var:
             --engine cpu \
             --output {params.output_dir} \
             --epochs {params.epochs_num} \
+            -m {params.min_contig_len} \
+            --sequencing-type {params.sequencing_type} \
             --include_std 1 \
             --checkpoint {input.checkpoint_path}
         """
 
 rule mean_binning:
     conda: "semibiniclr"
-    wildcard_constraints:
-        epoch = r"[0-9]+"
     input:
         i = lambda wildcards: os.path.join(INPUT_DIR, config['samples'][wildcards.sample]['eukfilt']),
         data = os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "bins", "data.csv"),
@@ -144,67 +146,96 @@ rule mean_binning:
             --data {input.data} \
             --model {input.model} \
             --output {output.dir} \
-            -p {resources.threads}
+            -p {resources.threads} \
+            -m {params.min_contig_len} \
+            --sequencing-type {params.sequencing_type}
         """
-#
-#
-#rule checkm2_semibin2_main:
-#    conda:
-#       "checkm2_v1.1.0",
-#    input:
-#        output_bins = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins", "output_bins"),
-#    output:
-#        dir = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "checkm2")),
-#        quality_file = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "checkm2", "quality_report.tsv"),
-#    params:
-#        ext = ".fa",
-#        db = config["databases"]["checkm2"],
-#        checkm2 = config["paths"]["checkm2"],
-#    resources:
-#        mem = "64G",
-#        threads = 16,
-#        walltime = "1-00:00:00",
-#        nodetype = config["partitions"]["cpu"],
-#    shell:
-#        """
-#        CHECKM2DB={params.db}
-#        checkm2 predict \
-#            -i {input.output_bins}/* \
-#            -o {output.dir} \
-#            -x {params.ext} \
-#            -t {resources.threads} \
-#            --force
-#        """
-#
-#
-#
-#rule checkm2_semibin2:
-#    conda:
-#       "checkm2_v1.1.0",
-#    wildcard_constraints:
-#        epoch = r"[0-9]+"
-#    input:
-#        output_bins = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "epoch_{epoch}", "bins", "output_bins"),
-#    output:
-#        dir = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "epoch_{epoch}", "checkm2")),
-#        quality_file = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "epoch_{epoch}", "checkm2", "quality_report.tsv"),
-#    params:
-#        ext = ".fa",
-#        db = config["databases"]["checkm2"],
-#        checkm2 = config["paths"]["checkm2"],
-#    resources:
-#        mem = "64G",
-#        threads = 16,
-#        walltime = "1-00:00:00",
-#        nodetype = config["partitions"]["cpu"],
-#    shell:
-#        """
-#        CHECKM2DB={params.db}
-#        checkm2 predict \
-#            -i {input.output_bins}/* \
-#            -o {output.dir} \
-#            -x {params.ext} \
-#            -t {resources.threads} \
-#            --force
-#        """
+
+rule var_binning:
+    conda: "semibiniclr"
+    wildcard_constraints:
+        epoch = r"[0-9]+"
+    input:
+        i = lambda wildcards: os.path.join(INPUT_DIR, config['samples'][wildcards.sample]['eukfilt']),
+        data = os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "bins", "data.csv"),
+        model = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "var_models", "model.pt"),
+    output:
+        dir = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "var_bins")),
+        output_bins = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "var_bins", "output_bins")),
+    params:
+        semibin2_path = os.path.join(ENV_DIR, "semibiniclr", "bin", "SemiBin2"),
+        container_path = os.path.join(CONTAINER_PATH, ),
+    resources:
+        mem="32G",
+        threads = 10,
+        walltime="1-00:00:00",
+        nodetype=config["partitions"]["cpu"],
+    shell:
+        """
+        which {params.semibin2_path} & \
+        apptainer exec --bind /projects:/projects {params.container_path} {params.semibin2_path} bin_long \
+            --input-fasta {input.i} \
+            --data {input.data} \
+            --model {input.model} \
+            --output {output.dir} \
+            -p {resources.threads} \
+            -m {params.min_contig_len} \
+            --sequencing-type {params.sequencing_type}
+        """
+
+rule mean_checkm2:
+    conda:
+       "checkm2_v1.1.0",
+    input:
+        output_bins = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_bins", "output_bins"),
+    output:
+        dir = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_checkm2")),
+        quality_file = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_checkm2", "quality_report.tsv"),
+    params:
+        ext = ".fa",
+        db = config["databases"]["checkm2"],
+        checkm2 = config["paths"]["checkm2"],
+    resources:
+        mem = "64G",
+        threads = 16,
+        walltime = "1-00:00:00",
+        nodetype = config["partitions"]["cpu"],
+    shell:
+        """
+        CHECKM2DB={params.db};
+        checkm2 predict \
+            -i {input.output_bins}/* \
+            -o {output.dir} \
+            -x {params.ext} \
+            -t {resources.threads} \
+            --force
+        """
+
+rule var_checkm2:
+    conda:
+       "checkm2_v1.1.0",
+    input:
+        output_bins = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "var_bins", "output_bins"),
+    output:
+        dir = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "var_checkm2")),
+        quality_file = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "var_checkm2", "quality_report.tsv"),
+    params:
+        ext = ".fa",
+        db = config["databases"]["checkm2"],
+        checkm2 = config["paths"]["checkm2"],
+    resources:
+        mem = "64G",
+        threads = 16,
+        walltime = "1-00:00:00",
+        nodetype = config["partitions"]["cpu"],
+    shell:
+        """
+        CHECKM2DB={params.db};
+        checkm2 predict \
+            -i {input.output_bins}/* \
+            -o {output.dir} \
+            -x {params.ext} \
+            -t {resources.threads} \
+            --force
+        """
 
