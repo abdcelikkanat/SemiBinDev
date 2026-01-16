@@ -18,8 +18,10 @@ VAR_EPOCHS=[f"{epoch}" for epoch in range(5, config['var_epochs_num'], 5)]
 
 rule all:
     input:
-        var_model_path = expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "var_models", "model.pt"), sample=SAMPLES),
-        output_bins = expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_bins", "output_bins"), sample=SAMPLES),
+        mean_quality_file = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_checkm2", "quality_report.tsv"),
+        var_quality_file = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "var_checkm2", "quality_report.tsv"),
+#        var_model_path = expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "var_models", "model.pt"), sample=SAMPLES),
+#        output_bins = expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_bins", "output_bins"), sample=SAMPLES),
 #        mean_model_path = expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins", "mean_model.pt"),  sample=SAMPLES),
 #        mean_model = expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins", "contig_bins.tsv"),  sample=SAMPLES),
 #        contig_bins = expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins", "contig_bins.tsv"),  sample=SAMPLES),
