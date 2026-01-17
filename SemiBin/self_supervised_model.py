@@ -9,25 +9,32 @@ import os
 
 def loss_function(embedding1, cov1, embedding2, cov2, label, include_std=False):
 
-    # Compute the term (m_i - m_j)^2
-    squared_diff = (embedding1 - embedding2) ** 2
-
-    if not include_std:
-
-        # Compute the log expectation
-        log_expectation = -squared_diff.sum(dim=1) / 4.
-
-    else:
-
-        # Compute the term (m_i - m_j)^2 / (s_i + s_j)
-        squared_diff = squared_diff / (cov1 + cov2)
-
-        # Compute the log expectation
-        log_expectation = -squared_diff.sum(dim=1) / 4.
-
-    output = -label * log_expectation - (1 - label) * torch.log(1 - torch.exp(torch.nn.functional.threshold(log_expectation, -1, 0)) + 1e-6)
-
-    return output.mean()
+    # # Compute the term (m_i - m_j)^2
+    # squared_diff = (embedding1 - embedding2) ** 2
+    #
+    # if not include_std:
+    #
+    #     # Compute the log expectation
+    #     log_expectation = -squared_diff.sum(dim=1) / 4.
+    #
+    # else:
+    #
+    #     # Compute the term (m_i - m_j)^2 / (s_i + s_j)
+    #     squared_diff = squared_diff / (cov1 + cov2)
+    #
+    #     # Compute the log expectation
+    #     log_expectation = -squared_diff.sum(dim=1) / 4.
+    #
+    # output = -label * log_expectation - (1 - label) * torch.log(1 - torch.exp(torch.nn.functional.threshold(log_expectation, -1, 0)) + 1e-6)
+    #
+    # return output.mean()
+    relu = torch.nn.ReLU()
+    d = torch.norm(embedding1 - embedding2, p=2, dim=1)
+    square_pred = torch.square(d)
+    margin_square = torch.square(relu(1 - d))
+    supervised_loss = torch.mean(
+        label * square_pred + (1 - label) * margin_square)
+    return supervised_loss
 
 
 def train_self(
