@@ -18,8 +18,8 @@ VAR_EPOCHS=[f"{epoch}" for epoch in range(5, config['var_epochs_num'], 5)]
 
 rule all:
     input:
-        mean_quality_file = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_checkm2", "quality_report.tsv"),
-        var_quality_file = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "var_checkm2", "quality_report.tsv"),
+        mean_quality_file = expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_checkm2", "quality_report.tsv"), sample=SAMPLES),
+        var_quality_file = expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "var_checkm2", "quality_report.tsv"), sample=SAMPLES),
 #        var_model_path = expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "var_models", "model.pt"), sample=SAMPLES),
 #        output_bins = expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_bins", "output_bins"), sample=SAMPLES),
 #        mean_model_path = expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins", "mean_model.pt"),  sample=SAMPLES),
@@ -38,8 +38,6 @@ rule semibin_train_mean:
     output:
         mean_model_path = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_models", "model.pt"),
     params:
-        min_contig_len = config["filtering"]["min_contig_len"],
-        sequencing_type = "long_read",
         epochs_num = config["mean_epochs_num"],
         semibin2_path = os.path.join(ENV_DIR, "semibiniclr", "bin", "SemiBin2"),
         container_path = os.path.join(CONTAINER_PATH, ),
@@ -59,8 +57,6 @@ rule semibin_train_mean:
             --engine cpu \
             --output {params.output_dir} \
             --epochs {params.epochs_num} \
-            -m {params.min_contig_len} \
-            --sequencing-type {params.sequencing_type} \
             --include_std 0
         """
 
@@ -96,8 +92,6 @@ rule semibin_train_var:
     output:
         var_model_path = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "var_models", "model.pt"),
     params:
-        min_contig_len = config["filtering"]["min_contig_len"],
-        sequencing_type = "long_read",
         epochs_num = config["var_epochs_num"],
         semibin2_path = os.path.join(ENV_DIR, "semibiniclr", "bin", "SemiBin2"),
         container_path = os.path.join(CONTAINER_PATH, ),
@@ -117,8 +111,6 @@ rule semibin_train_var:
             --engine cpu \
             --output {params.output_dir} \
             --epochs {params.epochs_num} \
-            -m {params.min_contig_len} \
-            --sequencing-type {params.sequencing_type} \
             --include_std 1 \
             --checkpoint {input.checkpoint_path}
         """
@@ -133,6 +125,7 @@ rule mean_binning:
         dir = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_bins")),
         output_bins = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_bins", "output_bins")),
     params:
+        min_contig_len = config["filtering"]["min_contig_len"],
         semibin2_path = os.path.join(ENV_DIR, "semibiniclr", "bin", "SemiBin2"),
         container_path = os.path.join(CONTAINER_PATH, ),
     resources:
@@ -150,7 +143,6 @@ rule mean_binning:
             --output {output.dir} \
             -p {resources.threads} \
             -m {params.min_contig_len} \
-            --sequencing-type {params.sequencing_type}
         """
 
 rule var_binning:
@@ -165,6 +157,7 @@ rule var_binning:
         dir = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "var_bins")),
         output_bins = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "var_bins", "output_bins")),
     params:
+        min_contig_len = config["filtering"]["min_contig_len"],
         semibin2_path = os.path.join(ENV_DIR, "semibiniclr", "bin", "SemiBin2"),
         container_path = os.path.join(CONTAINER_PATH, ),
     resources:
@@ -182,7 +175,6 @@ rule var_binning:
             --output {output.dir} \
             -p {resources.threads} \
             -m {params.min_contig_len} \
-            --sequencing-type {params.sequencing_type}
         """
 
 rule mean_checkm2:
