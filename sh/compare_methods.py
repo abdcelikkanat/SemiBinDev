@@ -45,10 +45,13 @@ sample_name="fecal_deep"
 base_folder_dir = f"/home/cs.aau.dk/zs74qz/workspace/SemiBinRefining/outputs_refining/{sample_name}"
 semibin2_file = f"{base_folder_dir}/SemiBin2/checkm2/quality_report.tsv"
 refining1_file = f"{base_folder_dir}/SemiBinRefining1/checkm2/quality_report.tsv"
+refining2_file = f"{base_folder_dir}/SemiBinRefining2/checkm2/quality_report.tsv"
 
 
 print(semibin2_file)
 semibin2_hq_count = get_hq_count(semibin2_file)
 refining1_hq_count = get_hq_count(refining1_file)
+refining2_hq_count = get_hq_count(refining2_file)
 print(semibin2_hq_count)
 print(refining1_hq_count)
+print(refining2_hq_count)

@@ -120,6 +120,7 @@ rule train_refining1:
         quality_bins = os.path.join(OUTPUT_DIR,"{sample}","SemiBin2","checkm2","quality_report.tsv"),
     output:
         dir = directory(os.path.join(OUTPUT_DIR, "{sample}", MODELNAME, "bins")),
+        model = os.path.join(OUTPUT_DIR, "{sample}", MODELNAME, "bins", "model.pt"),
     params:
         semibin_path = os.path.join(ENV_DIR, "semibinrefining", "bin", "SemiBin2"),
         container_path = os.path.join(CONTAINER_PATH, ),
@@ -138,7 +139,7 @@ rule train_refining1:
             --quality_report_file {input.quality_bins} \
             --threads {resources.threads} \
             --engine cpu \
-            --epoch 15 \
+            --epochs 15 \
             --output {output.dir} 
         """
 
@@ -149,7 +150,7 @@ rule binning_refining1:
         data = os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "bins", "data.csv"),
         model = os.path.join(OUTPUT_DIR, "{sample}", MODELNAME, "bins", "model.pt"),
     output:
-        dir = directory(os.path.join(OUTPUT_DIR, "{sample}", MODELNAME, "bins")),
+        dir = directory(os.path.join(OUTPUT_DIR, "{sample}", MODELNAME, "bins", "output_bins")),
     params:
         semibin_path = os.path.join(ENV_DIR, "semibinrefining", "bin", "SemiBin2"),
         container_path = os.path.join(CONTAINER_PATH, ),
@@ -173,7 +174,7 @@ rule checkm2_refining1:
     conda:
        "checkm2_v1.1.0",
     input:
-        output_bins = os.path.join(OUTPUT_DIR, "{sample}", MODELNAME, "bins", "output_bins"),
+        output_bins = os.path.join(OUTPUT_DIR, "{sample}", MODELNAME, "bins", "output_bins", "output_bins"),
     output:
         dir = directory(os.path.join(OUTPUT_DIR, "{sample}", MODELNAME, "checkm2")),
         quality_file = os.path.join(OUTPUT_DIR, "{sample}", MODELNAME, "checkm2", "quality_report.tsv"),
