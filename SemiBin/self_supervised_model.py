@@ -29,18 +29,18 @@ def loss_function(embedding1, cov1, embedding2, cov2, label, include_std=False):
     #
     # return output.mean()
 
-    #relu = torch.nn.ReLU()
-    #d = torch.norm(embedding1 - embedding2, p=2, dim=1)
-    #square_pred = torch.square(d)
-    #margin_square = torch.square(relu(1 - d))
-    #supervised_loss = torch.mean(
-    #    label * square_pred + (1 - label) * margin_square)
-    #return supervised_loss
+    relu = torch.nn.ReLU()
+    d = torch.norm(embedding1 - embedding2, p=2, dim=1)
+    square_pred = torch.square(d)
+    margin_square = torch.square(relu(1 - d))
+    supervised_loss = torch.mean(
+       label * square_pred + (1 - label) * margin_square)
+    return supervised_loss
 
-    squared_diff = (embedding1 - embedding2) ** 2
-    log_expectation = -squared_diff.sum(dim=1) / 4.
-    output = -label * log_expectation - (1 - label) * torch.log(1 - torch.exp(torch.nn.functional.threshold(log_expectation, -1, 0)) + 1e-6)
-    return output.mean()
+    # squared_diff = (embedding1 - embedding2) ** 2
+    # log_expectation = -squared_diff.sum(dim=1) / 4.
+    # output = -label * log_expectation - (1 - label) * torch.log(1 - torch.exp(torch.nn.functional.threshold(log_expectation, -1, 0)) + 1e-6)
+    # return output.mean()
 
 
 def train_self(
@@ -80,6 +80,7 @@ def train_self(
             model.include_std = include_std
             # raise NotImplementedError("For checkpoint, it has to be implemented!", include_std, model.include_std)
         else:
+            print(f"\t\t- Checkpoint not detect so mean only!")
             model = Semi_encoding_single(train_data.shape[1], include_std=include_std)
     else:
         model = Semi_encoding_multiple(train_data.shape[1])
