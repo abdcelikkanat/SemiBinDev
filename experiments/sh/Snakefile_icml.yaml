@@ -1,0 +1,236 @@
+import os
+
+# Config
+configfile: "config_icml.yaml"
+
+# Get the input and output directories
+INPUT_DIR = config["paths"]["input_dir"]
+OUTPUT_DIR = config["paths"]["output_dir"]
+ENV_DIR = config["paths"]["venv_dir"]
+TEMP_DIR = config["paths"]["temp_dir"]
+CONTAINER_PATH = config["paths"]["container_path"]
+
+# Input samples
+SAMPLES=[sample for sample in config['samples']]
+MEAN_EPOCHS=[f"{epoch}" for epoch in range(5, config['mean_epochs_num'], 5)]
+VAR_EPOCHS=[f"{epoch}" for epoch in range(5, config['var_epochs_num'], 5)]
+#        expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "epoch_{epoch}"), sample=SAMPLES, epoch=EPOCHS),
+
+rule all:
+    input:
+        mean_quality_file = expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_checkm2", "quality_report.tsv"), sample=SAMPLES),
+#        var_quality_file = expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "var_checkm2", "quality_report.tsv"), sample=SAMPLES),
+
+#        var_model_path = expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "var_models", "model.pt"), sample=SAMPLES),
+#        output_bins = expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_bins", "output_bins"), sample=SAMPLES),
+#        mean_model_path = expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins", "mean_model.pt"),  sample=SAMPLES),
+#        mean_model = expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins", "contig_bins.tsv"),  sample=SAMPLES),
+#        contig_bins = expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins", "contig_bins.tsv"),  sample=SAMPLES),
+#        dir = directory(expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins"),  sample=SAMPLES)),
+#        checkpoint_path = expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "bins", "checkpoint_{epoch}.pt"), epoch=EPOCHS, sample=SAMPLES),
+#        expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "checkm2", "quality_report.tsv"), sample=SAMPLES),
+#        expand(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "epoch_{epoch}", "checkm2", "quality_report.tsv"), sample=SAMPLES, epoch=EPOCHS),
+
+rule semibin_train_mean:
+    conda: "semibiniclr"
+    input:
+        data = os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "bins", "data.csv"),
+        data_split = os.path.join(OUTPUT_DIR,"{sample}","SemiBin2","bins","data_split.csv"),
+    output:
+        mean_model_path = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_models", "model.pt"),
+    params:
+        epochs_num = config["mean_epochs_num"],
+        semibin2_path = os.path.join(ENV_DIR, "semibiniclr", "bin", "SemiBin2"),
+        container_path = os.path.join(CONTAINER_PATH, ),
+        output_dir = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_models")),
+    resources:
+        mem="100G",
+        threads = 40,
+        walltime="1-00:00:00",
+        nodetype=config["partitions"]["cpu"],
+    shell:
+        """
+        which {params.semibin2_path} & \
+        apptainer exec --bind /projects:/projects {params.container_path} {params.semibin2_path} train_self \
+            --data {input.data} \
+            --data-split {input.data_split} \
+            --threads {resources.threads} \
+            --engine cpu \
+            --output {params.output_dir} \
+            --epochs {params.epochs_num} \
+            --include_std 0
+        """
+
+#rule mean_model_rename:
+#    input:
+#        mean_model_path = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_models", "model.pt"),
+#        mean_checkpoints = expand( os.path.join( OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_models", "checkpoint={epoch}.pt" ), epoch=MEAN_EPOCHS ),
+#        dir = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "models")
+#    output:
+#        mean_model_path = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_models", "mean_model.pt"),
+#        mean_checkpoints = expand( os.path.join( OUTPUT_DIR, "{sample}", "SemiBinICLR", "models", "checkpoint={epoch}", "model.pt" ), epoch=MEAN_EPOCHS ),
+#    resources:
+#        mem="10G",
+#        threads = 4,
+#        walltime="1-00:00:00",
+#        nodetype=config["partitions"]["cpu"],
+#    shell:
+#        """
+#        for ckpt in {input.dir}/checkpoint\=*; do
+#            filename=$(basename $ckpt);
+#            mkdir {input.dir}/$filename ;
+#            mv $ckpt {input.dir}/${filename%.*}/model.pt ;
+#        done
+#        mv {input.mean_model_path} {output.mean_model_path};
+#        """
+
+rule semibin_train_var:
+    conda: "semibiniclr"
+    input:
+        data = os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "bins", "data.csv"),
+        data_split = os.path.join(OUTPUT_DIR,"{sample}","SemiBin2","bins","data_split.csv"),
+        checkpoint_path = os.path.join( OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_models", "model.pt"),
+    output:
+        var_model_path = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "var_models", "model.pt"),
+    params:
+        epochs_num = config["var_epochs_num"],
+        semibin2_path = os.path.join(ENV_DIR, "semibiniclr", "bin", "SemiBin2"),
+        container_path = os.path.join(CONTAINER_PATH, ),
+        output_dir = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "var_models")),
+    resources:
+        mem="100G",
+        threads = 40,
+        walltime="1-00:00:00",
+        nodetype=config["partitions"]["cpu"],
+    shell:
+        """
+        which {params.semibin2_path} & \
+        apptainer exec --bind /projects:/projects {params.container_path} {params.semibin2_path} train_self \
+            --data {input.data} \
+            --data-split {input.data_split} \
+            --threads {resources.threads} \
+            --engine cpu \
+            --output {params.output_dir} \
+            --epochs {params.epochs_num} \
+            --include_std 1 \
+            --checkpoint {input.checkpoint_path}
+        """
+
+rule mean_binning:
+    conda: "semibiniclr"
+    input:
+        i = lambda wildcards: os.path.join(INPUT_DIR, config['samples'][wildcards.sample]['eukfilt']),
+        data = os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "bins", "data.csv"),
+        model = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_models", "model.pt"),
+    output:
+        dir = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_bins")),
+        output_bins = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_bins", "output_bins")),
+    params:
+        min_contig_len = config["filtering"]["min_contig_len"],
+        semibin2_path = os.path.join(ENV_DIR, "semibiniclr", "bin", "SemiBin2"),
+        container_path = os.path.join(CONTAINER_PATH, ),
+    resources:
+        mem="32G",
+        threads = 10,
+        walltime="1-00:00:00",
+        nodetype=config["partitions"]["cpu"],
+    shell:
+        """
+        which {params.semibin2_path} & \
+        apptainer exec --bind /projects:/projects {params.container_path} {params.semibin2_path} bin_long \
+            --input-fasta {input.i} \
+            --data {input.data} \
+            --model {input.model} \
+            --output {output.dir} \
+            -p {resources.threads} \
+            -m {params.min_contig_len} \
+        """
+
+rule var_binning:
+    conda: "semibiniclr"
+    wildcard_constraints:
+        epoch = r"[0-9]+"
+    input:
+        i = lambda wildcards: os.path.join(INPUT_DIR, config['samples'][wildcards.sample]['eukfilt']),
+        data = os.path.join(OUTPUT_DIR, "{sample}", "SemiBin2", "bins", "data.csv"),
+        model = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "var_models", "model.pt"),
+    output:
+        dir = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "var_bins")),
+        output_bins = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "var_bins", "output_bins")),
+    params:
+        min_contig_len = config["filtering"]["min_contig_len"],
+        semibin2_path = os.path.join(ENV_DIR, "semibiniclr", "bin", "SemiBin2"),
+        container_path = os.path.join(CONTAINER_PATH, ),
+    resources:
+        mem="32G",
+        threads = 10,
+        walltime="1-00:00:00",
+        nodetype=config["partitions"]["cpu"],
+    shell:
+        """
+        which {params.semibin2_path} & \
+        apptainer exec --bind /projects:/projects {params.container_path} {params.semibin2_path} bin_long \
+            --input-fasta {input.i} \
+            --data {input.data} \
+            --model {input.model} \
+            --output {output.dir} \
+            -p {resources.threads} \
+            -m {params.min_contig_len} \
+        """
+
+rule mean_checkm2:
+    conda:
+       "checkm2_v1.1.0",
+    input:
+        output_bins = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_bins", "output_bins"),
+    output:
+        dir = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_checkm2")),
+        quality_file = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "mean_checkm2", "quality_report.tsv"),
+    params:
+        ext = ".fa",
+        db = config["databases"]["checkm2"],
+        checkm2 = config["paths"]["checkm2"],
+    resources:
+        mem = "64G",
+        threads = 16,
+        walltime = "1-00:00:00",
+        nodetype = config["partitions"]["cpu"],
+    shell:
+        """
+        CHECKM2DB={params.db};
+        checkm2 predict \
+            -i {input.output_bins}/* \
+            -o {output.dir} \
+            -x {params.ext} \
+            -t {resources.threads} \
+            --force
+        """
+
+rule var_checkm2:
+    conda:
+       "checkm2_v1.1.0",
+    input:
+        output_bins = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "var_bins", "output_bins"),
+    output:
+        dir = directory(os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "var_checkm2")),
+        quality_file = os.path.join(OUTPUT_DIR, "{sample}", "SemiBinICLR", "var_checkm2", "quality_report.tsv"),
+    params:
+        ext = ".fa",
+        db = config["databases"]["checkm2"],
+        checkm2 = config["paths"]["checkm2"],
+    resources:
+        mem = "64G",
+        threads = 16,
+        walltime = "1-00:00:00",
+        nodetype = config["partitions"]["cpu"],
+    shell:
+        """
+        CHECKM2DB={params.db};
+        checkm2 predict \
+            -i {input.output_bins}/* \
+            -o {output.dir} \
+            -x {params.ext} \
+            -t {resources.threads} \
+            --force
+        """
+
