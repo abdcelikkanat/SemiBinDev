@@ -52,6 +52,10 @@ def get_best_bin(results, contig_to_marker, namelist, contig_dict, minfasta):
 def cluster_long_read(logger, model, data, device, is_combined,
             n_sample, out, contig_dict, *, binned_length, args,
             minfasta):
+
+    print(f"\t- BEN: I. Clustering long reads")
+    print(f"\t\t- BEN: model.include_std: {model.include_std} | is_combined: {is_combined}")
+
     import pandas as pd
     from .utils import norm_abundance
     contig_list = data.index.tolist()
