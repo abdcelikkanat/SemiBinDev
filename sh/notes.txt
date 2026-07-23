@@ -1,0 +1,13 @@
+
+# Go the version 2.2.1 version of SemiBin2
+git checkout e3999ff
+
+# Create a new branch from this point 
+git branch extensive
+git checkout extensive
+
+# 
+conda create -n semibin4uncertain python=3.12
+conda activate semibin4uncertain
+conda install -c bioconda bedtools hmmer samtools
+pip install ..
