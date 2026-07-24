@@ -230,6 +230,17 @@ def parse_args(args):
                               dest='output',
                               default=None,
                               )
+        # UncertainGen Update
+        p.add_argument(
+            '--mean_only', required=False, help='Mean only mode', dest='mean_only', default=True, type=int
+        )
+        p.add_argument(
+            '--std_only', required=False, help='Std only mode', dest='std_only', default=False, type=int
+        )
+        p.add_argument(
+            '--checkpoint_path', required=False, help='Existing model path', dest='checkpoint_path', default=""
+        )
+        ###
 
     for p in [train_semi, training_self]:
         p.add_argument('--batch-size',
@@ -288,6 +299,12 @@ def parse_args(args):
                              help='Path to the input data.csv file.',
                              dest='data',
                              default=None,)
+
+            # UncertainGen Update
+            p.add_argument(
+                '--metric', required=True, help='Metric for binning', dest='metric', default="l2"
+            )
+            ###
 
         if p in [multi_easy_bin, generate_sequence_features_multi]:
             p.add_argument('-b', '--input-bam',
@@ -1073,7 +1090,7 @@ def training(logger, contig_fasta,
 
     model: [single/several]
     """
-    from .semi_supervised_model import train_semi
+    # from .semi_supervised_model import train_semi # This class is not used! (UncertainGen)
     from .self_supervised_model import train_self
     import pandas as pd
 
@@ -1088,30 +1105,34 @@ def training(logger, contig_fasta,
         is_combined = False
 
     if args.training_type == 'semi':
-        binned_lengths = []
-        for fafile in contig_fasta:
-            binned_lengths.append(
-                    utils.maybe_compute_min_length(args.min_len, fafile, args.ratio))
-            if mode == 'single':
-                break
 
-        model = train_semi(
-            logger,
-            output,
-            contig_fasta,
-            binned_lengths,
-            data,
-            data_split,
-            cannot_link,
-            is_combined=is_combined,
-            batchsize=args.batchsize,
-            epoches=args.epoches,
-            device=device,
-            num_process=args.num_process,
-            mode=mode,
-            prodigal_output_faa=args.prodigal_output_faa,
-            orf_finder=args.orf_finder)
+        raise NotImplemented("This class is not used! (UncertainGen)")
+
+        # binned_lengths = []
+        # for fafile in contig_fasta:
+        #     binned_lengths.append(
+        #             utils.maybe_compute_min_length(args.min_len, fafile, args.ratio))
+        #     if mode == 'single':
+        #         break
+        #
+        # model = train_semi(
+        #     logger,
+        #     output,
+        #     contig_fasta,
+        #     binned_lengths,
+        #     data,
+        #     data_split,
+        #     cannot_link,
+        #     is_combined=is_combined,
+        #     batchsize=args.batchsize,
+        #     epoches=args.epoches,
+        #     device=device,
+        #     num_process=args.num_process,
+        #     mode=mode,
+        #     prodigal_output_faa=args.prodigal_output_faa,
+        #     orf_finder=args.orf_finder)
     else:
+        logger.info(f'[UncertainGen]: main.py -> train_self(...) | mean_only {args.mean_only} | std_only {args.std_only}')
         model = train_self(logger,
                            data,
                            data_split,
@@ -1120,8 +1141,20 @@ def training(logger, contig_fasta,
                            args.epoches,
                            device,
                            args.num_process,
-                           mode)
-    model.save_with_params_to(os.path.join(output, 'model.pt'))
+                           mode,
+                           bool(args.mean_only),
+                           bool(args.std_only),
+                           args.checkpoint_path,
+                           output_folder=output)
+
+    # UncertainGen: Define final model name
+    filename = "model_final"
+    if args.mean_only:
+        filename += "_mean_only"
+    if args.std_only:
+        filename += "_std_only"
+    filename += f"_epochs_{args.epoches}.pt"
+    model.save_with_params_to(os.path.join(output, filename))
 
 
 def binning_preprocess(data, depth_metabat2, model_path, environment, device):
@@ -1160,6 +1193,9 @@ def binning_preprocess(data, depth_metabat2, model_path, environment, device):
 
 def binning_long(logger, data, minfasta, binned_length, contig_dict,
         model_path, output, device, environment, *, args):
+
+    logger.info(f'[UncertainGen]: main.py -> binning_long(...) | metric: {args.metric}')
+
     from .long_read_cluster import cluster_long_read
     logger.info('Start binning.')
     is_combined, n_sample, data, model = binning_preprocess(data, getattr(args, 'depth_metabat2', None), model_path, environment, device)
@@ -1445,7 +1481,7 @@ def main2(raw_args=None, is_semibin2=True):
         fh = logging.FileHandler(os.path.join(args.output, "SemiBinRun.log"))
         fh.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s: %(message)s'))
         logger.addHandler(fh)
-    logger.info(f'Running SemiBin2 version {__version__}')
+    logger.info(f'Running SemiBin2 version {__version__} [UncertainGen v1.0.0]')
     logger.debug(f'Starting SemiBin2 with arguments: {raw_args}')
     logger.debug(f'Parsed arguments as: {args}')
 

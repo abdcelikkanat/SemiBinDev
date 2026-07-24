@@ -50,6 +50,9 @@ def get_best_bin(results, contig_to_marker, namelist, contig_dict, minfasta):
 def cluster_long_read(logger, model, data, device, is_combined,
             n_sample, out, contig_dict, *, binned_length, args,
             minfasta):
+
+    logger.info(f'[UncertainGen]: long_read_cluster.py -> cluster_long_read(...) | metric: {args.metric} | is_combined: {is_combined}')
+
     import pandas as pd
     from .utils import norm_abundance
     contig_list = data.index.tolist()
@@ -66,7 +69,9 @@ def cluster_long_read(logger, model, data, device, is_combined,
     with torch.no_grad():
         model.eval()
         x = torch.from_numpy(train_data_input).to(device)
-        embedding = model.embedding(x.float()).detach().cpu().numpy()
+        # embedding = model.embedding(x.float()).detach().cpu().numpy() # UncertainGen update
+        emb_mean, emb_var = model.embedding(x.float())
+        emb_mean, emb_var = emb_mean.detach().cpu().numpy(), emb_var.detach().cpu().numpy()
 
     length_weight = np.array(
         [len(contig_dict[name]) for name in contig_list])
@@ -75,8 +80,12 @@ def cluster_long_read(logger, model, data, device, is_combined,
         depth = data.values[:, 136:len(data.values[0])].astype(np.float32)
         mean_index = [2 * temp for temp in range(n_sample)]
         depth = depth[:, mean_index]
-        embedding_new = np.concatenate((embedding, np.log(depth)), axis=1)
+        # embedding_new = np.concatenate((embedding, np.log(depth)), axis=1) # UncertainGen update
+        emb_mean_new = np.concatenate((emb_mean, np.log(depth)), axis=1)
+        emb_var_new = np.concatenate((emb_var, np.ones_like(depth)), axis=1)
+
     else:
+        raise NotImplemented("This part is not used! (UncertainGen)")
         embedding_new = embedding
 
     import tempfile
@@ -100,12 +109,40 @@ def cluster_long_read(logger, model, data, device, is_combined,
     output_bin_path = os.path.join(out, 'output_bins')
 
     logger.debug('Running DBSCAN.')
-    dist_matrix = kneighbors_graph(
-        embedding_new,
-        n_neighbors=min(200, embedding_new.shape[0] - 1),
-        mode='distance',
-        p=2,
-        n_jobs=args.num_process)
+    # UncertainGen Update
+    if args.metric == "l2":
+
+        dist_matrix = kneighbors_graph(
+            emb_mean_new,
+            n_neighbors=min(200, emb_mean_new.shape[0] - 1),
+            mode='distance',
+            p=2,
+            n_jobs=args.num_process)
+
+    elif args.metric == "mahalanobis":
+
+        def custom_metric(x, y):
+
+            assert x.ndim == 1, "It must be a vector!"
+
+            x_mean, x_cov = x[:len(x)//2], x[len(x)//2:]
+            y_mean, y_cov = y[:len(y)//2], y[len(y)//2:]
+
+            return np.sqrt(((x_mean - y_mean)**2 / (x_cov + y_cov)).sum())
+
+        emb_new = np.hstack((emb_mean_new, emb_var_new))
+        print(emb_mean_new.shape, emb_var_new.shape, emb_new.shape)
+
+        dist_matrix = kneighbors_graph(
+            emb_new,
+            n_neighbors=min(200, emb_new.shape[0] - 1),
+            mode='distance',
+            metric=custom_metric,
+            n_jobs=args.num_process)
+
+    else:
+        raise ValueError(f"UncertainGen: Invalid metric: {args.metric}")
+    ###
 
     dbscan_results = []
     for eps_value in [0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55]:

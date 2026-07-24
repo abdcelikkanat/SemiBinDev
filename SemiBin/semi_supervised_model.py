@@ -8,53 +8,53 @@ from .markers import estimate_seeds
 from torch.optim import lr_scheduler
 import sys
 
-
-class Semi_encoding_multiple(torch.nn.Module):
-    """
-    Model for combined features
-    """
-    def __init__(self, num):
-        super(Semi_encoding_multiple, self).__init__()
-        self.encoder1 = torch.nn.Sequential(
-            Linear(num, 512),
-            nn.BatchNorm1d(512),
-            LeakyReLU(),
-            nn.Dropout(0.2),
-            Linear(512, 512),
-            nn.BatchNorm1d(512),
-            LeakyReLU(),
-            nn.Dropout(0.2),
-            Linear(512, 100),
-        )
-
-        self.decoder1 = torch.nn.Sequential(
-            Linear(100, 512),
-            nn.BatchNorm1d(512),
-            LeakyReLU(),
-            nn.Dropout(0.2),
-            Linear(512, 512),
-            nn.BatchNorm1d(512),
-            LeakyReLU(),
-            nn.Dropout(0.2),
-            Linear(512, num),
-            nn.Sigmoid(),
-        )
-
-    def forward(self, input1, input2):
-        return self.encoder1(input1), self.encoder1(input2)
-
-    def decoder(self, input1, input2):
-        return self.decoder1(input1), self.decoder1(input2)
-
-    def embedding(self, input):
-        return self.encoder1(input)
-
-    def save_with_params_to(self, path):
-        torch.save({
-                    'model_name': 'Semi_encoding_multiple',
-                    'model_state_dict': self.state_dict(),
-                    'params': [self.encoder1[0].in_features],
-                    }, path)
+### This class is not used! (UncertainGen)
+# class Semi_encoding_multiple(torch.nn.Module):
+#     """
+#     Model for combined features
+#     """
+#     def __init__(self, num):
+#         super(Semi_encoding_multiple, self).__init__()
+#         self.encoder1 = torch.nn.Sequential(
+#             Linear(num, 512),
+#             nn.BatchNorm1d(512),
+#             LeakyReLU(),
+#             nn.Dropout(0.2),
+#             Linear(512, 512),
+#             nn.BatchNorm1d(512),
+#             LeakyReLU(),
+#             nn.Dropout(0.2),
+#             Linear(512, 100),
+#         )
+#
+#         self.decoder1 = torch.nn.Sequential(
+#             Linear(100, 512),
+#             nn.BatchNorm1d(512),
+#             LeakyReLU(),
+#             nn.Dropout(0.2),
+#             Linear(512, 512),
+#             nn.BatchNorm1d(512),
+#             LeakyReLU(),
+#             nn.Dropout(0.2),
+#             Linear(512, num),
+#             nn.Sigmoid(),
+#         )
+#
+#     def forward(self, input1, input2):
+#         return self.encoder1(input1), self.encoder1(input2)
+#
+#     def decoder(self, input1, input2):
+#         return self.decoder1(input1), self.decoder1(input2)
+#
+#     def embedding(self, input):
+#         return self.encoder1(input)
+#
+#     def save_with_params_to(self, path):
+#         torch.save({
+#                     'model_name': 'Semi_encoding_multiple',
+#                     'model_state_dict': self.state_dict(),
+#                     'params': [self.encoder1[0].in_features],
+#                     }, path)
 
 
 class Semi_encoding_single(torch.nn.Module):
@@ -63,7 +63,18 @@ class Semi_encoding_single(torch.nn.Module):
     """
     def __init__(self, num):
         super(Semi_encoding_single, self).__init__()
-        self.encoder1 = torch.nn.Sequential(
+        self.encoder_mean = torch.nn.Sequential(
+            Linear(num, 512),
+            nn.BatchNorm1d(512),
+            LeakyReLU(),
+            nn.Dropout(0.2),
+            Linear(512, 512),
+            nn.BatchNorm1d(512),
+            LeakyReLU(),
+            nn.Dropout(0.2),
+            Linear(512, 100),
+        )
+        self.encoder_log_std = torch.nn.Sequential(
             Linear(num, 512),
             nn.BatchNorm1d(512),
             LeakyReLU(),
@@ -75,33 +86,40 @@ class Semi_encoding_single(torch.nn.Module):
             Linear(512, 100),
         )
 
-        self.decoder1 = torch.nn.Sequential(
-            Linear(100, 512),
-            nn.BatchNorm1d(512),
-            LeakyReLU(),
-            nn.Dropout(0.2),
-            Linear(512, 512),
-            nn.BatchNorm1d(512),
-            LeakyReLU(),
-            nn.Dropout(0.2),
-            Linear(512, num),
-            nn.Softmax(dim=1),
-        )
+        # UncertainGen: Decoder part is not used so discarded!
+        # self.decoder1 = torch.nn.Sequential(
+        #     Linear(100, 512),
+        #     nn.BatchNorm1d(512),
+        #     LeakyReLU(),
+        #     nn.Dropout(0.2),
+        #     Linear(512, 512),
+        #     nn.BatchNorm1d(512),
+        #     LeakyReLU(),
+        #     nn.Dropout(0.2),
+        #     Linear(512, num),
+        #     nn.Softmax(dim=1),
+        # )
 
-    def forward(self, input1, input2):
-        return self.encoder1(input1), self.encoder1(input2)
+    def forward(self, input1, input2, mean_only=True, std_only=False):
+        if mean_only:
+            return self.encoder_mean(input1), self.encoder_mean(input2), None, None
+        elif std_only:
+            return self.encoder_mean(input1), self.encoder_mean(input2), torch.exp(self.encoder_log_std(input1)), torch.exp(self.encoder_log_std(input2))
+        else:
+            raise ValueError("mean_only and std_only cannot be true at the same time (UncertainGen)")
 
     def decoder(self, input1, input2):
+        raise NotImplemented("This class is not used! (UncertainGen)")
         return self.decoder1(input1), self.decoder1(input2)
 
     def embedding(self, input):
-        return self.encoder1(input)
+        return self.encoder_mean(input), torch.exp(self.encoder_log_std(input))
 
     def save_with_params_to(self, path):
         torch.save({
                     'model_name': 'Semi_encoding_single',
                     'model_state_dict': self.state_dict(),
-                    'params': [self.encoder1[0].in_features],
+                    'params': [self.encoder_mean[0].in_features, self.encoder_log_std[0].in_features],
                     }, path)
 
 
@@ -138,13 +156,17 @@ def model_load(path, device, warn_on_old_format=True):
     if saved['model_name'] == 'Semi_encoding_single':
         model = Semi_encoding_single(saved['params'][0])
     elif saved['model_name'] == 'Semi_encoding_multiple':
-        model = Semi_encoding_multiple(saved['params'][0])
+        raise NotImplemented("This part is not used! (UncertainGen)")
+        # model = Semi_encoding_multiple(saved['params'][0])
     model.load_state_dict(saved['model_state_dict'])
     return model.to(device)
 
 
 def loss_function(embedding1, embedding2, label, raw_x_1,
                   raw_x_2, decoder_x_1, decoder_x_2, is_label=True):
+    raise NotImplemented("This class is not used! (UncertainGen)")
+
+
     relu = torch.nn.ReLU()
     mse_loss = torch.nn.MSELoss()
     d = torch.norm(embedding1 - embedding2, p=2, dim=1)
@@ -198,6 +220,8 @@ class unsupervised_feature_Dataset(Dataset):
 def train_semi(logger, out, contig_fastas, binned_lengths, datas, data_splits, cannot_links, is_combined=True,
           batchsize=2048, epoches=20, device=None, num_process = 8, mode = 'single', orf_finder = 'prodigal',
           prodigal_output_faa=None):
+    raise NotImplemented("This class is not used! (UncertainGen)")
+
     """
     Train model from one sample(--mode single) or several samples(--mode several)
     """
