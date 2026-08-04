@@ -75,7 +75,7 @@ class Semi_encoding_single(torch.nn.Module):
         #     Linear(512, 100),
         # )
         self.encoder_mean = torch.nn.Sequential(
-            torch.nn.Linear(self.__kc.get_kmers_num(), 512, dtype=torch.float),
+            torch.nn.Linear(num, 512, dtype=torch.float),
             torch.nn.BatchNorm1d(512, dtype=torch.float),
             torch.nn.Sigmoid(),
             torch.nn.Dropout(0.2),
@@ -93,7 +93,7 @@ class Semi_encoding_single(torch.nn.Module):
         #     Linear(512, 100),
         # )
         self.encoder_log_std = self.encoder_mean = torch.nn.Sequential(
-            torch.nn.Linear(self.__kc.get_kmers_num(), 512, dtype=torch.float),
+            torch.nn.Linear(num, 512, dtype=torch.float),
             torch.nn.BatchNorm1d(512, dtype=torch.float),
             torch.nn.Sigmoid(),
             torch.nn.Dropout(0.2),
