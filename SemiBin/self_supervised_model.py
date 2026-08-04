@@ -105,8 +105,6 @@ def train_self(
 
     for epoch in tqdm(range(epoches)):
 
-        print("mean: ", model.encoder_mean[0].weight[0, :5], "std: ", model.encoder_log_std[0].weight[0, :5])
-
         for data_index, (datapath, data_split_path) in enumerate(zip(datapaths, data_splits)):
             if epoch == 0:
                 logger.debug(f'Reading training data for index {data_index}...')
