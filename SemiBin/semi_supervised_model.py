@@ -63,27 +63,41 @@ class Semi_encoding_single(torch.nn.Module):
     """
     def __init__(self, num):
         super(Semi_encoding_single, self).__init__()
+        # self.encoder_mean = torch.nn.Sequential(
+        #     Linear(num, 512),
+        #     nn.BatchNorm1d(512),
+        #     LeakyReLU(),
+        #     nn.Dropout(0.2),
+        #     Linear(512, 512),
+        #     nn.BatchNorm1d(512),
+        #     LeakyReLU(),
+        #     nn.Dropout(0.2),
+        #     Linear(512, 100),
+        # )
         self.encoder_mean = torch.nn.Sequential(
-            Linear(num, 512),
-            nn.BatchNorm1d(512),
-            LeakyReLU(),
-            nn.Dropout(0.2),
-            Linear(512, 512),
-            nn.BatchNorm1d(512),
-            LeakyReLU(),
-            nn.Dropout(0.2),
-            Linear(512, 100),
+            torch.nn.Linear(self.__kc.get_kmers_num(), 512, dtype=torch.float),
+            torch.nn.BatchNorm1d(512, dtype=torch.float),
+            torch.nn.Sigmoid(),
+            torch.nn.Dropout(0.2),
+            torch.nn.Linear(512, 256, dtype=torch.float),
         )
-        self.encoder_log_std = torch.nn.Sequential(
-            Linear(num, 512),
-            nn.BatchNorm1d(512),
-            LeakyReLU(),
-            nn.Dropout(0.2),
-            Linear(512, 512),
-            nn.BatchNorm1d(512),
-            LeakyReLU(),
-            nn.Dropout(0.2),
-            Linear(512, 100),
+        # self.encoder_log_std = torch.nn.Sequential(
+        #     Linear(num, 512),
+        #     nn.BatchNorm1d(512),
+        #     LeakyReLU(),
+        #     nn.Dropout(0.2),
+        #     Linear(512, 512),
+        #     nn.BatchNorm1d(512),
+        #     LeakyReLU(),
+        #     nn.Dropout(0.2),
+        #     Linear(512, 100),
+        # )
+        self.encoder_log_std = self.encoder_mean = torch.nn.Sequential(
+            torch.nn.Linear(self.__kc.get_kmers_num(), 512, dtype=torch.float),
+            torch.nn.BatchNorm1d(512, dtype=torch.float),
+            torch.nn.Sigmoid(),
+            torch.nn.Dropout(0.2),
+            torch.nn.Linear(512, 256, dtype=torch.float),
         )
 
         # UncertainGen: Decoder part is not used so discarded!
