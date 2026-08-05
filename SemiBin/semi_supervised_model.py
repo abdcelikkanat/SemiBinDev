@@ -92,7 +92,7 @@ class Semi_encoding_single(torch.nn.Module):
         #     nn.Dropout(0.2),
         #     Linear(512, 100),
         # )
-        self.encoder_log_std = self.encoder_mean = torch.nn.Sequential(
+        self.encoder_log_std = torch.nn.Sequential(
             torch.nn.Linear(num, 512, dtype=torch.float),
             torch.nn.BatchNorm1d(512, dtype=torch.float),
             torch.nn.Sigmoid(),
