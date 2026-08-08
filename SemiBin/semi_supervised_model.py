@@ -79,7 +79,7 @@ class Semi_encoding_single(torch.nn.Module):
             torch.nn.BatchNorm1d(512, dtype=torch.float),
             torch.nn.Sigmoid(),
             torch.nn.Dropout(0.2),
-            torch.nn.Linear(512, 256, dtype=torch.float),
+            torch.nn.Linear(512, 100, dtype=torch.float),
         )
         # self.encoder_log_std = torch.nn.Sequential(
         #     Linear(num, 512),
@@ -97,7 +97,7 @@ class Semi_encoding_single(torch.nn.Module):
             torch.nn.BatchNorm1d(512, dtype=torch.float),
             torch.nn.Sigmoid(),
             torch.nn.Dropout(0.2),
-            torch.nn.Linear(512, 256, dtype=torch.float),
+            torch.nn.Linear(512, 100, dtype=torch.float),
         )
 
         # UncertainGen: Decoder part is not used so discarded!

@@ -82,8 +82,8 @@ def cluster_long_read(logger, model, data, device, is_combined,
         depth = depth[:, mean_index]
         # embedding_new = np.concatenate((embedding, np.log(depth)), axis=1) # UncertainGen update
         # Let's discard the depth feature to examine its impact
-        emb_mean_new = emb_mean #np.concatenate((emb_mean, np.log(depth)), axis=1)
-        emb_var_new = emb_var #np.concatenate((emb_var, np.ones_like(depth)), axis=1)
+        emb_mean_new = np.concatenate((emb_mean, np.log(depth)), axis=1)
+        emb_var_new = np.concatenate((emb_var, np.ones_like(depth)), axis=1)
 
     else:
         raise NotImplemented("This part is not used! (UncertainGen)")
