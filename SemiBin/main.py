@@ -240,6 +240,22 @@ def parse_args(args):
         p.add_argument(
             '--checkpoint_path', required=False, help='Existing model path', dest='checkpoint_path', default=""
         )
+        p.add_argument(
+            '--emb_dim', required=False, type=int, default=100, dest='emb_dim',
+            help='Output (embedding) dimension of the encoders (ignored with --std_only 1: taken from the checkpoint)'
+        )
+        p.add_argument(
+            '--hidden_dim', required=False, type=int, default=512, dest='hidden_dim',
+            help='Width of the hidden layers (ignored with --std_only 1)'
+        )
+        p.add_argument(
+            '--n_layers', required=False, type=int, default=1, dest='n_layers',
+            help='Number of hidden layers in each encoder (ignored with --std_only 1)'
+        )
+        p.add_argument(
+            '--save_every', required=False, type=int, default=5, dest='save_every',
+            help='Save a checkpoint every N epochs (0 disables)'
+        )
         ###
 
     for p in [train_semi, training_self]:
@@ -1145,7 +1161,11 @@ def training(logger, contig_fasta,
                            bool(args.mean_only),
                            bool(args.std_only),
                            args.checkpoint_path,
-                           output_folder=output)
+                           output_folder=output,
+                           emb_dim=args.emb_dim,
+                           hidden_dim=args.hidden_dim,
+                           n_layers=args.n_layers,
+                           save_every=args.save_every)
 
     # UncertainGen: Define final model name
     filename = "model_final"

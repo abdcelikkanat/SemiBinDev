@@ -15,19 +15,18 @@ def loss_function(mean_emb1, mean_emb2, cov_emb1, cov_emb2, label, mean_only=Tru
         d = torch.norm(mean_emb1 - mean_emb2, p=2, dim=1)
         square_pred = torch.square(d)
         margin_square = torch.square(relu(1 - d))
-        supervised_loss = torch.mean(
-            label * square_pred + (1 - label) * margin_square)
-        return supervised_loss
+        per_pair = label * square_pred + (1 - label) * margin_square
+        return torch.mean(per_pair), per_pair
 
     elif std_only:
 
         relu = torch.nn.ReLU()
         square_pred = torch.sum((mean_emb1 - mean_emb2)**2 / (cov_emb1 + cov_emb2), dim=1)
-        d = torch.sqrt(square_pred)
+        # eps keeps the gradient finite when two embeddings coincide (sqrt'(0) = inf -> NaN)
+        d = torch.sqrt(square_pred + 1e-12)
         margin_square = torch.square(relu(1 - d))
-        supervised_loss = torch.mean(
-            label * square_pred + (1 - label) * margin_square)
-        return supervised_loss
+        per_pair = label * square_pred + (1 - label) * margin_square
+        return torch.mean(per_pair), per_pair
 
     else:
 
@@ -37,7 +36,7 @@ def loss_function(mean_emb1, mean_emb2, cov_emb1, cov_emb2, label, mean_only=Tru
 def train_self(
         logger, datapaths, data_splits, is_combined=True, batchsize=2048, epoches=15,
         device=None, num_process = 8, mode = 'single', mean_only=True, std_only=False, checkpoint_path="",
-        output_folder=""
+        output_folder="", emb_dim=100, hidden_dim=512, n_layers=1, save_every=5
 ):
     """
     Train model from one sample(mode=single) or several samples(mode=several)
@@ -69,9 +68,13 @@ def train_self(
 
     if not is_combined:
         if mean_only:
-            model = Semi_encoding_single(train_data.shape[1])
+            model = Semi_encoding_single(train_data.shape[1], emb_dim=emb_dim,
+                                         hidden_dim=hidden_dim, n_layers=n_layers)
         if std_only:
+            # The architecture is taken from the checkpoint; emb_dim/hidden_dim/n_layers are ignored.
             model = model_load(checkpoint_path, device=torch.device('cpu'))
+        logger.info(f'[UncertainGen]: architecture | emb_dim {model.emb_dim} | '
+                    f'hidden_dim {model.hidden_dim} | n_layers {model.n_layers}')
     else:
         raise NotImplemented("This part is not used! (UncertainGen)")
         model = Semi_encoding_multiple(train_data.shape[1])
@@ -94,14 +97,26 @@ def train_self(
     optimizer = torch.optim.Adam(model_params, lr=1e-3)
     scheduler = lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.9)
 
-    # UncertainGen Update: Define model parameters and set the correct optimization mode
-    if mean_only:
-        model.encoder_mean.train()
-        model.encoder_log_std.eval()
-    if std_only:
-        model.encoder_mean.eval()
-        model.encoder_log_std.train()
+    # UncertainGen Update: Define model parameters and set the correct optimization mode.
+    # The frozen encoder must stay in eval mode: otherwise its BatchNorm running
+    # statistics keep being updated (and dropout applied) although requires_grad=False.
+    def set_train_mode():
+        if mean_only:
+            model.encoder_mean.train()
+            model.encoder_log_std.eval()
+        if std_only:
+            model.encoder_mean.eval()
+            model.encoder_log_std.train()
+    set_train_mode()
     ###
+
+    # UncertainGen: loss log (one row per epoch and data file), written as we go
+    phase = "mean_only" if mean_only else "std_only"
+    os.makedirs(output_folder, exist_ok=True)
+    loss_log_path = os.path.join(output_folder, f"loss_{phase}.tsv")
+    loss_log = open(loss_log_path, "w")
+    loss_log.write("epoch\tdata_index\tlr\tn_batches\tmean_loss\tmust_link_loss\tcannot_link_loss\n")
+    loss_log.flush()
 
     for epoch in tqdm(range(epoches)):
 
@@ -176,8 +191,9 @@ def train_self(
                 num_workers=0,
                 drop_last=True)
 
+            loss_sum, ml_sum, cl_sum, ml_n, cl_n, n_batches = 0.0, 0.0, 0.0, 0, 0, 0
             for train_input1, train_input2, train_label in train_loader:
-                model.train()
+                set_train_mode()
                 train_input1 = train_input1.to(device=device, dtype=torch.float32)
                 train_input2 = train_input2.to(device=device, dtype=torch.float32)
                 train_label = train_label.to(device=device, dtype=torch.float32)
@@ -186,7 +202,7 @@ def train_self(
                 )
                 # decoder1, decoder2 = model.decoder(embedding1, embedding2)
                 optimizer.zero_grad()
-                supervised_loss = loss_function(
+                supervised_loss, per_pair_loss = loss_function(
                     mean_emb1.double(),
                     mean_emb2.double(),
                     cov_emb1.double() if std_only else cov_emb1,
@@ -198,18 +214,36 @@ def train_self(
                 supervised_loss.backward()
                 optimizer.step()
 
-            # UncertainGen Update
-            if epoch != 0 and (epoch+1) % 5 == 0:
-                filename = "checkpoint"
-                if mean_only:
-                    filename += "_mean_only"
-                if std_only:
-                    filename += "_std_only"
-                filename += f"_current_epoch_{epoch+1}.pt"
-                model.save_with_params_to(os.path.join(output_folder, filename))
-            ###
+                # UncertainGen: accumulate losses for logging (no extra forward pass)
+                with torch.no_grad():
+                    per_pair = per_pair_loss.detach()
+                    is_ml = train_label > 0.5
+                    loss_sum += supervised_loss.item()
+                    ml_sum += per_pair[is_ml].sum().item()
+                    cl_sum += per_pair[~is_ml].sum().item()
+                    ml_n += int(is_ml.sum().item())
+                    cl_n += int((~is_ml).sum().item())
+                    n_batches += 1
+
+            mean_loss = loss_sum / max(n_batches, 1)
+            ml_loss = ml_sum / ml_n if ml_n else float('nan')
+            cl_loss = cl_sum / cl_n if cl_n else float('nan')
+            lr = optimizer.param_groups[0]['lr']
+            loss_log.write(f"{epoch+1}\t{data_index}\t{lr:.6g}\t{n_batches}\t"
+                           f"{mean_loss:.8g}\t{ml_loss:.8g}\t{cl_loss:.8g}\n")
+            loss_log.flush()
+            logger.info(f'[UncertainGen]: epoch {epoch+1}/{epoches} | data {data_index} | '
+                        f'loss {mean_loss:.6f} | must-link {ml_loss:.6f} | cannot-link {cl_loss:.6f}')
+
+        # UncertainGen Update: save a checkpoint every `save_every` epochs
+        # (after all data files have been seen in this epoch)
+        if save_every > 0 and (epoch + 1) % save_every == 0:
+            filename = f"checkpoint_{phase}_current_epoch_{epoch+1}.pt"
+            model.save_with_params_to(os.path.join(output_folder, filename))
+        ###
 
         scheduler.step()
 
-    logger.info('Training finished.')
+    loss_log.close()
+    logger.info(f'Training finished. Loss log written to {loss_log_path}')
     return model

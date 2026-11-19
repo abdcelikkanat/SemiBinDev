@@ -57,62 +57,41 @@ import sys
 #                     }, path)
 
 
+def _build_encoder(num, emb_dim, hidden_dim, n_layers):
+    """
+    UncertainGen: encoder with `n_layers` hidden blocks of
+    Linear -> BatchNorm1d -> Sigmoid -> Dropout, followed by a Linear projection to `emb_dim`.
+    n_layers=1, hidden_dim=512 reproduces the v1.0.x architecture (identical state_dict keys).
+    """
+    if n_layers < 1:
+        raise ValueError(f"n_layers must be >= 1 (got {n_layers})")
+    layers = []
+    in_dim = num
+    for _ in range(n_layers):
+        layers += [
+            torch.nn.Linear(in_dim, hidden_dim, dtype=torch.float),
+            torch.nn.BatchNorm1d(hidden_dim, dtype=torch.float),
+            torch.nn.Sigmoid(),
+            torch.nn.Dropout(0.2),
+        ]
+        in_dim = hidden_dim
+    layers.append(torch.nn.Linear(in_dim, emb_dim, dtype=torch.float))
+    return torch.nn.Sequential(*layers)
+
+
 class Semi_encoding_single(torch.nn.Module):
     """
     Model for k-mer features
     """
-    def __init__(self, num):
+    def __init__(self, num, emb_dim=100, hidden_dim=512, n_layers=1):
         super(Semi_encoding_single, self).__init__()
-        # self.encoder_mean = torch.nn.Sequential(
-        #     Linear(num, 512),
-        #     nn.BatchNorm1d(512),
-        #     LeakyReLU(),
-        #     nn.Dropout(0.2),
-        #     Linear(512, 512),
-        #     nn.BatchNorm1d(512),
-        #     LeakyReLU(),
-        #     nn.Dropout(0.2),
-        #     Linear(512, 100),
-        # )
-        self.encoder_mean = torch.nn.Sequential(
-            torch.nn.Linear(num, 512, dtype=torch.float),
-            torch.nn.BatchNorm1d(512, dtype=torch.float),
-            torch.nn.Sigmoid(),
-            torch.nn.Dropout(0.2),
-            torch.nn.Linear(512, 100, dtype=torch.float),
-        )
-        # self.encoder_log_std = torch.nn.Sequential(
-        #     Linear(num, 512),
-        #     nn.BatchNorm1d(512),
-        #     LeakyReLU(),
-        #     nn.Dropout(0.2),
-        #     Linear(512, 512),
-        #     nn.BatchNorm1d(512),
-        #     LeakyReLU(),
-        #     nn.Dropout(0.2),
-        #     Linear(512, 100),
-        # )
-        self.encoder_log_std = torch.nn.Sequential(
-            torch.nn.Linear(num, 512, dtype=torch.float),
-            torch.nn.BatchNorm1d(512, dtype=torch.float),
-            torch.nn.Sigmoid(),
-            torch.nn.Dropout(0.2),
-            torch.nn.Linear(512, 100, dtype=torch.float),
-        )
-
+        self.num = num
+        self.emb_dim = emb_dim
+        self.hidden_dim = hidden_dim
+        self.n_layers = n_layers
+        self.encoder_mean = _build_encoder(num, emb_dim, hidden_dim, n_layers)
+        self.encoder_log_std = _build_encoder(num, emb_dim, hidden_dim, n_layers)
         # UncertainGen: Decoder part is not used so discarded!
-        # self.decoder1 = torch.nn.Sequential(
-        #     Linear(100, 512),
-        #     nn.BatchNorm1d(512),
-        #     LeakyReLU(),
-        #     nn.Dropout(0.2),
-        #     Linear(512, 512),
-        #     nn.BatchNorm1d(512),
-        #     LeakyReLU(),
-        #     nn.Dropout(0.2),
-        #     Linear(512, num),
-        #     nn.Softmax(dim=1),
-        # )
 
     def forward(self, input1, input2, mean_only=True, std_only=False):
         if mean_only:
@@ -123,8 +102,7 @@ class Semi_encoding_single(torch.nn.Module):
             raise ValueError("mean_only and std_only cannot be true at the same time (UncertainGen)")
 
     def decoder(self, input1, input2):
-        raise NotImplemented("This class is not used! (UncertainGen)")
-        return self.decoder1(input1), self.decoder1(input2)
+        raise NotImplementedError("This class is not used! (UncertainGen)")
 
     def embedding(self, input):
         return self.encoder_mean(input), torch.exp(self.encoder_log_std(input))
@@ -133,8 +111,29 @@ class Semi_encoding_single(torch.nn.Module):
         torch.save({
                     'model_name': 'Semi_encoding_single',
                     'model_state_dict': self.state_dict(),
-                    'params': [self.encoder_mean[0].in_features, self.encoder_log_std[0].in_features],
+                    'params': [self.num, self.num],
+                    'arch': {
+                        'num': self.num,
+                        'emb_dim': self.emb_dim,
+                        'hidden_dim': self.hidden_dim,
+                        'n_layers': self.n_layers,
+                    },
                     }, path)
+
+
+def _arch_from_state_dict(num, state_dict):
+    """Infer the architecture of models saved before 'arch' was stored (v1.0.x)."""
+    linear_weights = [k for k in state_dict
+                      if k.startswith('encoder_mean.') and k.endswith('.weight')
+                      and state_dict[k].dim() == 2]
+    linear_weights.sort(key=lambda k: int(k.split('.')[1]))
+    first, last = state_dict[linear_weights[0]], state_dict[linear_weights[-1]]
+    return {
+        'num': num,
+        'emb_dim': last.shape[0],
+        'hidden_dim': first.shape[0],
+        'n_layers': len(linear_weights) - 1,
+    }
 
 
 def model_load(path, device, warn_on_old_format=True):
@@ -168,7 +167,8 @@ def model_load(path, device, warn_on_old_format=True):
             sys.exit(1)
         return model
     if saved['model_name'] == 'Semi_encoding_single':
-        model = Semi_encoding_single(saved['params'][0])
+        arch = saved.get('arch') or _arch_from_state_dict(saved['params'][0], saved['model_state_dict'])
+        model = Semi_encoding_single(**arch)
     elif saved['model_name'] == 'Semi_encoding_multiple':
         raise NotImplemented("This part is not used! (UncertainGen)")
         # model = Semi_encoding_multiple(saved['params'][0])
